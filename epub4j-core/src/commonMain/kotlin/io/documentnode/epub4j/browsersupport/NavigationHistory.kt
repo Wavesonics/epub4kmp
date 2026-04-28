@@ -2,12 +2,15 @@ package io.documentnode.epub4j.browsersupport
 
 import io.documentnode.epub4j.domain.Book
 import io.documentnode.epub4j.domain.Resource
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * A history of the user's locations with the epub.
  *
  * @author paul.siegmann
  */
+@OptIn(ExperimentalTime::class)
 class NavigationHistory(private val navigator: Navigator) : NavigationEventListener {
     class Location(var href: String)
 
@@ -135,14 +138,14 @@ class NavigationHistory(private val navigator: Navigator) : NavigationEventListe
             return
         }
 
-        if ((System.currentTimeMillis() - this.lastUpdateTime) > historyWaitTime) {
+        if ((Clock.System.now().toEpochMilliseconds() - this.lastUpdateTime) > historyWaitTime) {
             // if the user scrolled rapidly through the pages then the last page
             // will not be added to the history. We fix that here:
             navigationEvent.oldResource?.let { addLocation(it) }
 
             navigationEvent.currentResource?.href?.let { addLocation(it) }
         }
-        lastUpdateTime = System.currentTimeMillis()
+        lastUpdateTime = Clock.System.now().toEpochMilliseconds()
     }
 
     val currentHref: String?

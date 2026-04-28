@@ -1,7 +1,6 @@
 package io.documentnode.epub4j.epub
 
 import io.documentnode.epub4j.domain.Book
-import kotlin.invoke
 
 /**
  * Post-processes a book.

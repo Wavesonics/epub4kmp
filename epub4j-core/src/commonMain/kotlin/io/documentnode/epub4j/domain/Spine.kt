@@ -1,21 +1,15 @@
 package io.documentnode.epub4j.domain
 
-import io.documentnode.epub4j.util.StringUtil
-import java.io.Serializable
-
 /**
  * The spine sections are the sections of the book in the order in which the book should be read.
  *
  * This contrasts with the Table of Contents sections which is an index into the Book's sections.
  *
  * @see TableOfContents
- *
- *
- * @author paul
  */
 class Spine(
     internal var spineReferences: List<SpineReference>
-): Serializable {
+) {
 
     var tocResource: Resource? = null
 
@@ -127,7 +121,6 @@ class Spine(
         get() = spineReferences.isEmpty()
 
     companion object {
-        private const val serialVersionUID = 3878483958947357246L
         fun createSpineReferences(
             resources: List<Resource>
         ): List<SpineReference> {

@@ -8,18 +8,15 @@ import io.documentnode.epub4j.util.StringUtil.endsWithIgnoreCase
  * @author paul
  */
 object MediaTypes {
-    @JvmField
     val XHTML: MediaType = MediaType(
         "application/xhtml+xml",
         ".xhtml",
         ".htm", ".html", ".xhtml"
     )
-    @JvmField
     val EPUB: MediaType = MediaType(
         "application/epub+zip",
         ".epub"
     )
-    @JvmField
     val NCX: MediaType = MediaType(
         "application/x-dtbncx+xml",
         ".ncx"
@@ -72,7 +69,6 @@ object MediaTypes {
         ".pls"
     )
 
-    @JvmField
     var mediaTypes: Array<MediaType> = arrayOf(
         XHTML, EPUB, JPG, PNG, GIF, CSS, SVG, TTF, NCX, XPGT, OPENTYPE, WOFF,
         SMIL, PLS, JAVASCRIPT, MP3, MP4, OGG
@@ -86,7 +82,6 @@ object MediaTypes {
         }
     }
 
-    @JvmStatic
     fun isBitmapImage(mediaType: MediaType): Boolean {
         return mediaType === JPG || mediaType === PNG || mediaType === GIF
     }
@@ -98,7 +93,6 @@ object MediaTypes {
      * @param filename
      * @return the MediaType based on the file extension.
      */
-    @JvmStatic
     fun determineMediaType(filename: String): MediaType? {
         return mediaTypesByName.values.firstOrNull { type ->
             type.extensions.any { extension ->
@@ -107,7 +101,6 @@ object MediaTypes {
         }
     }
 
-    @JvmStatic
     fun getMediaTypeByName(mediaTypeName: String): MediaType? {
         return mediaTypesByName[mediaTypeName]
     }

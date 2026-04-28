@@ -1,22 +1,17 @@
 package io.documentnode.epub4j.domain
 
-import java.io.Serializable
-import java.util.*
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * A Book's identifier.
  *
  * Defaults to a random UUID and scheme "UUID"
- *
- * @author paul
  */
-/**
- * Creates an Identifier with as value a random UUID and scheme "UUID"
- */
-class Identifier(
+class Identifier @OptIn(ExperimentalUuidApi::class) constructor(
     val scheme: String = Scheme.UUID,
-    val value: String = UUID.randomUUID().toString()
-) : Serializable {
+    val value: String = Uuid.random().toString()
+) {
     interface Scheme {
         companion object {
             const val UUID: String = "UUID"
@@ -38,8 +33,6 @@ class Identifier(
     var isBookId: Boolean = false
 
     companion object {
-        private const val serialVersionUID = 955949951416391810L
-
         /**
          * The first identifier for which the bookId is true is made the
          * bookId identifier.

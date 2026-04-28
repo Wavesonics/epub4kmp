@@ -1,7 +1,5 @@
 package io.documentnode.epub4j.domain
 
-import java.io.Serializable
-
 /**
  * The guide is a selection of special pages of the book.
  * Examples of these are the cover, list of illustrations, etc.
@@ -13,7 +11,7 @@ import java.io.Serializable
  *
  * @author paul
  */
-class Guide : Serializable {
+class Guide {
     internal var references: MutableList<GuideReference> = mutableListOf()
     private var coverPageIndex = -1
 
@@ -110,8 +108,6 @@ class Guide : Serializable {
     }
 
     companion object {
-        private const val serialVersionUID = -6256645339915751189L
-
         val DEFAULT_COVER_TITLE: String = GuideReference.COVER
 
         private const val COVERPAGE_NOT_FOUND = -1

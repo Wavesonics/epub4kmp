@@ -1,137 +1,124 @@
-﻿# epub4j
+# epub4j-kmp
 
-A java library for reading/writing/manipulating EPUB files, with improvements based on [epublib](https://github.com/psiegman/epublib).
+A Kotlin Multiplatform library for reading, writing, and manipulating EPUB files.
 
-Comparing to the original epublib, epub4j contains the following changes:
-* Switched to Gradle Kotlin DSL as the build tool
-* Removed the dependency of SLF4J libraries
-* Fixed issues of creating a native shared library
+A KMP fork of [epub4j-kotlin](https://github.com/documentnode/epub4j) (which itself
+forked [epublib](https://github.com/psiegman/epublib)). All Java/JVM-only code in
+the fork has been replaced with multiplatform equivalents:
 
-It consists of 2 parts: a core that reads/writes epub and a collection of tools.
+- **Streams** — [okio](https://square.github.io/okio/) `Source` / `Sink`
+- **ZIP** — [no.synth:kmp-zip](https://github.com/henrik242/kmp-zip) for writing,
+  [okio](https://square.github.io/okio/)'s `FileSystem.openZip()` for reading
+- **XML** — [xmlutil](https://github.com/pdvrieze/xmlutil) (DOM2 reads, streaming `XmlWriter` writes)
+- **Date/UUID** — [kotlinx-datetime](https://github.com/Kotlin/kotlinx-datetime), `kotlin.uuid.Uuid`
 
-The tools contain an epub cleanup tool, a tool to create epubs from html files, a tool to create an epub from an uncompress html file. It also contains a swing-based epub viewer.
+## Supported targets
 
-![EPUB4J viewer](doc/Alice%E2%80%99s-Adventures-in-Wonderland_2011-01-30_18-17-30.png)
+| Target | Status |
+|---|---|
+| JVM (incl. Android) | ✅ Tested |
+| iosArm64, iosX64, iosSimulatorArm64 | ✅ Compiles; tests run on a macOS host |
+| macOS / JS / wasmJs / Android | Possible — depends on the dependencies above |
 
-The core runs both on android and a standard java environment. The tools run only on a standard java environment.
+## Install
 
-This means that reading/writing epub files works on Android.
-
-Maintained by [Document Node](https://documentnode.io).
-
-## Build status
-
-[![MiniLog Actions Status](https://github.com/documentnode/epub4j/workflows/Java%20CI%20with%20Gradle/badge.svg)](https://github.com/documentnode/epub4j/actions)
-
-[![Travis Build Status](https://travis-ci.org/documentnode/epub4j.svg?branch=main)](https://travis-ci.org/documentnode/epub4j)
-
-## Command line examples
-
-Set the author of an existing epub
-
-```bash
-make build
-cd epub4j-tools/build/libs
-java -jar epub4j-tools-4.3-SNAPSHOT-all.jar --in input.epub --out result.epub --author Tester,Joe
-```
-
-Set the cover image of an existing epub
-
-```bash
-make build
-cd epub4j-tools/build/libs
-java -jar epub4j-tools-4.3-SNAPSHOT-all.jar --in input.epub --out result.epub --cover-image my_cover.jpg
-```
-
-## Creating an epub programmatically
-
-```java
-package io.documentnode.epub4j.examples;
-
-import java.io.InputStream;
-import java.io.FileOutputStream;
-
-import io.documentnode.epub4j.domain.Author;
-import io.documentnode.epub4j.domain.Book;
-import io.documentnode.epub4j.domain.Metadata;
-import io.documentnode.epub4j.domain.Resource;
-import io.documentnode.epub4j.domain.TOCReference;
-
-import io.documentnode.epub4j.epub.EpubWriter;
-
-public class Translator {
-  private static InputStream getResource( String path ) {
-    return Translator.class.getResourceAsStream( path );
-  }
-
-  private static Resource getResource( String path, String href ) {
-    return new Resource( getResource( path ), href );
-  }
-
-  public static void main(String[] args) {
-    try {
-      // Create new Book
-      Book book = new Book();
-      Metadata metadata = book.getMetadata();
-
-      // Set the title
-      metadata.addTitle("EPUB4J test book 1");
-
-      // Add an Author
-      metadata.addAuthor(new Author("Joe", "Tester"));
-
-      // Set cover image
-      book.setCoverImage(
-        getResource("/book1/test_cover.png", "cover.png"));
-
-      // Add Chapter 1
-      book.addSection("Introduction",
-        getResource("/book1/chapter1.html", "chapter1.html"));
-
-      // Add css file
-      book.getResources().add(
-        getResource("/book1/book1.css", "book1.css"));
-
-      // Add Chapter 2
-      TOCReference chapter2 = book.addSection( "Second Chapter",
-        getResource("/book1/chapter2.html", "chapter2.html"));
-
-      // Add image used by Chapter 2
-      book.getResources().add(
-        getResource("/book1/flowers_320x240.jpg", "flowers.jpg"));
-
-      // Add Chapter2, Section 1
-      book.addSection(chapter2, "Chapter 2, section 1",
-        getResource("/book1/chapter2_1.html", "chapter2_1.html"));
-
-      // Add Chapter 3
-      book.addSection("Conclusion",
-        getResource("/book1/chapter3.html", "chapter3.html"));
-
-      // Create EpubWriter
-      EpubWriter epubWriter = new EpubWriter();
-
-      // Write the Book as Epub
-      epubWriter.write(book, new FileOutputStream("test1_book1.epub"));
-    } catch (Exception e) {
-      e.printStackTrace();
+```kotlin
+// in your shared module's build.gradle.kts
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.darkrockstudios:epub4j-core:0.1.0-SNAPSHOT")
+        }
     }
-  }
 }
 ```
 
-## Usage in Android
+> **Pre-release.** The API is stabilizing; expect breaking changes before 1.0.
 
-Add the following lines to your `app` module's `build.gradle` file:
+## Quick start
 
-```groovy
-repositories {
-  mavenCentral()
+### Read an EPUB
+
+```kotlin
+import io.documentnode.epub4j.epub.EpubReader
+import okio.FileSystem
+import okio.Path.Companion.toPath
+
+val book = EpubReader().readEpub(FileSystem.SYSTEM, "my-book.epub".toPath())
+
+println(book.metadata.firstTitle)
+for (author in book.metadata.getAuthors()) {
+    println("${author.firstname} ${author.lastname}")
 }
-
-dependencies {
-  implementation('io.documentnode:epub4j-core:4.2.1') {
-    exclude group: 'xmlpull'
-  }
+for (resource in book.spine.getSpineReferences()) {
+    println(resource.resource?.href)
 }
 ```
+
+You can also read from any okio `Source` (e.g. an in-memory `Buffer` or a network
+stream):
+
+```kotlin
+val book = EpubReader().readEpub(buffer /* okio.Source */)
+```
+
+### Write an EPUB
+
+```kotlin
+import io.documentnode.epub4j.domain.Author
+import io.documentnode.epub4j.domain.Book
+import io.documentnode.epub4j.domain.MediaTypes
+import io.documentnode.epub4j.domain.Resource
+import io.documentnode.epub4j.epub.EpubWriter
+import okio.FileSystem
+import okio.Path.Companion.toPath
+
+val book = Book().apply {
+    metadata.addTitle("My Book")
+    metadata.addAuthor(Author("Ada", "Lovelace"))
+    metadata.language = "en"
+
+    val ch1 = Resource(
+        id = "ch1",
+        data = """
+            <html><head><title>Chapter 1</title></head>
+            <body><h1>Hello</h1></body></html>
+        """.trimIndent().encodeToByteArray(),
+        href = "ch1.xhtml",
+    ).apply { mediaType = MediaTypes.XHTML }
+
+    addSection("Chapter 1", ch1)
+}
+
+FileSystem.SYSTEM.write("output.epub".toPath()) {
+    EpubWriter().write(book, this)
+}
+```
+
+## Lazy loading large books
+
+Pass a list of `MediaType`s to `readEpub` to keep those resources unloaded until
+their bytes are first accessed — useful for large books with many images:
+
+```kotlin
+val book = EpubReader().readEpub(
+    fileSystem = FileSystem.SYSTEM,
+    zipPath = "huge-book.epub".toPath(),
+    lazyLoadedTypes = listOf(MediaTypes.JPG, MediaTypes.PNG),
+)
+```
+
+## Building
+
+```bash
+./gradlew build         # all targets, runs JVM tests
+./gradlew jvmTest       # JVM smoke test
+./gradlew iosSimulatorArm64Test   # macOS host only
+```
+
+iOS Kotlin/Native compilation works on every host; running the iOS tests
+requires a macOS host with Xcode.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE) and [CREDITS](CREDITS).

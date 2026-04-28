@@ -1,117 +1,48 @@
 package io.documentnode.epub4j.epub
 
-import io.documentnode.epub4j.Constants
-import org.kxml2.io.KXmlSerializer
-import org.xml.sax.EntityResolver
-import org.xml.sax.InputSource
-import org.xml.sax.SAXException
-import org.xmlpull.v1.XmlSerializer
-import java.io.*
-import java.net.URL
-import javax.xml.parsers.DocumentBuilder
-import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.parsers.ParserConfigurationException
+import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
+import nl.adaptivity.xmlutil.XmlDeclMode
+import nl.adaptivity.xmlutil.XmlUtilInternal
+import nl.adaptivity.xmlutil.XmlWriter
+import nl.adaptivity.xmlutil.dom2.Document
+import nl.adaptivity.xmlutil.newGenericWriter
+import nl.adaptivity.xmlutil.writeCurrent
+import nl.adaptivity.xmlutil.xmlStreaming
 
 /**
- * Various low-level support methods for reading/writing epubs.
+ * Low-level XML helpers used across the EPUB reader/writer code.
  *
- * @author paul.siegmann
+ * Wraps xmlutil's [xmlStreaming] for parsing to [Document] and writing
+ * EPUB-shaped XML.
  */
-class EpubProcessorSupport {
-    internal class EntityResolverImpl : EntityResolver {
-        private var previousLocation: String? = null
-
-        @Throws(SAXException::class, IOException::class)
-        override fun resolveEntity(
-            publicId: String,
-            systemId: String
-        ): InputSource {
-            val resourcePath: String
-            if (systemId.startsWith("http:")) {
-                val url = URL(systemId)
-                resourcePath = "dtd/" + url.host + url.path
-                previousLocation = resourcePath.substring(0, resourcePath.lastIndexOf('/'))
-            } else {
-                resourcePath = previousLocation + systemId.substring(systemId.lastIndexOf('/'))
-            }
-
-            if (this::class.java.classLoader.getResource(resourcePath) == null) {
-                throw RuntimeException(
-                    "remote resource is not cached : [" + systemId
-                            + "] cannot continue"
-                )
-            }
-
-            val inputStream = EpubProcessorSupport::class.java.classLoader
-                .getResourceAsStream(resourcePath)
-            return InputSource(inputStream)
+object EpubProcessorSupport {
+    /**
+     * Parses [xml] into a DOM2 [Document].
+     */
+    @OptIn(ExperimentalXmlUtilApi::class, XmlUtilInternal::class)
+    fun parseDocument(xml: CharSequence): Document {
+        val reader = xmlStreaming.newReader(xml)
+        val writer = xmlStreaming.newWriter()
+        while (reader.hasNext()) {
+            reader.next()
+            reader.writeCurrent(writer)
         }
+        return writer.target
     }
 
-    val documentBuilderFactory: DocumentBuilderFactory?
-        get() = Companion.documentBuilderFactory
+    /**
+     * Parses [bytes], decoded as [encoding], into a DOM2 [Document].
+     */
+    fun parseDocument(bytes: ByteArray, encoding: String = "UTF-8"): Document =
+        parseDocument(bytes.decodeToString())
 
-    companion object {
-        private val documentBuilderFactory = DocumentBuilderFactory.newInstance().apply {
-            isNamespaceAware = true
-            isValidating = false
-        }
-
-        @JvmStatic
-        @Throws(UnsupportedEncodingException::class)
-        fun createXmlSerializer(out: OutputStream): XmlSerializer? {
-            return createXmlSerializer(
-                OutputStreamWriter(out, Constants.CHARACTER_ENCODING)
-            )
-        }
-
-        fun createXmlSerializer(out: Writer?): XmlSerializer? {
-            var result: XmlSerializer? = null
-            try {
-                /*
-               * Disable XmlPullParserFactory here before it doesn't work when
-               * building native image using GraalVM
-               */
-                // XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
-                // factory.setValidating(true);
-                // result = factory.newSerializer();
-
-                result = KXmlSerializer()
-                result.setFeature(
-                    "http://xmlpull.org/v1/doc/features.html#indent-output", true
-                )
-                result.setOutput(out)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            return result
-        }
-
-        val entityResolver: EntityResolver
-            /**
-             * Gets an EntityResolver that loads dtd's and such from the epub4j classpath.
-             * In order to enable the loading of relative urls the given EntityResolver contains the previousLocation.
-             * Because of a new EntityResolver is created every time this method is called.
-             * Fortunately the EntityResolver created uses up very little memory per instance.
-             *
-             * @return an EntityResolver that loads dtd's and such from the epub4j classpath.
-             */
-            get() = EntityResolverImpl()
-
-        /**
-         * Creates a DocumentBuilder that looks up dtd's and schema's from epub4j's classpath.
-         *
-         * @return a DocumentBuilder that looks up dtd's and schema's from epub4j's classpath.
-         */
-        fun createDocumentBuilder(): DocumentBuilder? {
-            var result: DocumentBuilder? = null
-            try {
-                result = documentBuilderFactory.newDocumentBuilder()
-                result.setEntityResolver(entityResolver)
-            } catch (e: ParserConfigurationException) {
-                e.printStackTrace()
-            }
-            return result
-        }
-    }
+    /**
+     * Creates an indenting [XmlWriter] that appends XML to [output].
+     */
+    fun createXmlWriter(output: Appendable): XmlWriter =
+        xmlStreaming.newGenericWriter(
+            output = output,
+            isRepairNamespaces = true,
+            xmlDeclMode = XmlDeclMode.Charset
+        ).also { it.indentString = "  " }
 }

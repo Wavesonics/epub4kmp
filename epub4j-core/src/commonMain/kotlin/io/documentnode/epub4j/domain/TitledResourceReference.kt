@@ -1,13 +1,12 @@
 package io.documentnode.epub4j.domain
 
 import io.documentnode.epub4j.Constants
-import java.io.Serializable
 
 open class TitledResourceReference(
     resource: Resource?,
     var title: String? = null,
     var fragmentId: String? = null
-) : ResourceReference(resource), Serializable {
+) : ResourceReference(resource) {
     val completeHref: String?
         /**
          * If the fragmentId is blank it returns the resource href, otherwise
@@ -35,8 +34,4 @@ open class TitledResourceReference(
         set(resource) {
             setResource(resource, null)
         }
-
-    companion object {
-        private const val serialVersionUID = 3918155020095190080L
-    }
 }

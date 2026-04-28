@@ -1,18 +1,11 @@
 package io.documentnode.epub4j.domain
 
-import io.documentnode.epub4j.util.StringUtil
-import java.io.Serializable
-import java.util.*
-
 /**
  * These are references to elements of the book's guide.
  *
  * @see Guide
- *
- *
- * @author paul
  */
-class GuideReference : TitledResourceReference, Serializable {
+class GuideReference : TitledResourceReference {
     var type: String? = null
 
     constructor(resource: Resource?, title: String? = null) : super(resource, title)
@@ -23,12 +16,10 @@ class GuideReference : TitledResourceReference, Serializable {
         title: String?,
         fragmentId: String? = null
     ) : super(resource, title, fragmentId) {
-        this.type = type.takeIf(String::isNotBlank)?.lowercase(Locale.getDefault())
+        this.type = type.takeIf(String::isNotBlank)?.lowercase()
     }
 
     companion object {
-        private const val serialVersionUID = -316179702440631834L
-
         /**
          * the book cover(s), jacket information, etc.
          */

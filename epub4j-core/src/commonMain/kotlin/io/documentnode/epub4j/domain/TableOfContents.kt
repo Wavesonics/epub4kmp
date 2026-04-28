@@ -1,7 +1,5 @@
 package io.documentnode.epub4j.domain
 
-import java.io.Serializable
-
 /**
  * The table of contents of the book.
  * The TableOfContents is a tree structure at the root it is a list of TOCReferences, each if which may have as children another list of TOCReferences.
@@ -18,7 +16,7 @@ import java.io.Serializable
  */
 class TableOfContents(
     private var tocReferences: MutableList<TOCReference> = mutableListOf()
-) : Serializable {
+) {
     fun getTocReferences(): List<TOCReference> {
         return tocReferences
     }
@@ -39,7 +37,6 @@ class TableOfContents(
      * Calls addTOCReferenceAtLocation after splitting the path using the DEFAULT_PATH_SEPARATOR.
      * @return the new TOCReference
      */
-    @JvmOverloads
     fun addSection(
         resource: Resource,
         path: String,
@@ -229,8 +226,6 @@ class TableOfContents(
     }
 
     companion object {
-        private const val serialVersionUID = -3147391239966275152L
-
         const val DEFAULT_PATH_SEPARATOR: String = "/"
 
         /**

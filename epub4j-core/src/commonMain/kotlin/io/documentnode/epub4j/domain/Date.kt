@@ -1,21 +1,19 @@
 package io.documentnode.epub4j.domain
 
-import io.documentnode.epub4j.epub.PackageDocumentBase
-import java.io.Serializable
-import java.text.SimpleDateFormat
-import java.util.Date
+import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * A Date used by the book's metadata.
  *
  * Examples: creation-date, modification-date, etc
- *
- * @author paul
  */
 class Date(
     val value: String,
     val event: Event? = null
-) : Serializable {
+) {
     enum class Event(private val value: String) {
         PUBLICATION("publication"),
         MODIFICATION("modification"),
@@ -28,13 +26,12 @@ class Date(
         }
     }
 
-    constructor(date: Date) : this(
-        SimpleDateFormat(PackageDocumentBase.dateFormat).format(date)
-    )
+    constructor(date: LocalDate) : this(date.toString())
 
-    constructor(date: Date, event: String) : this(
-        SimpleDateFormat(PackageDocumentBase.dateFormat).format(date),
-        event
+    constructor(date: LocalDate, event: Event?) : this(date.toString(), event)
+
+    constructor(instant: Instant) : this(
+        instant.toLocalDateTime(TimeZone.UTC).date.toString()
     )
 
     constructor(dateString: String, event: String) : this(
@@ -48,9 +45,4 @@ class Date(
         }
         return "$event:$value"
     }
-
-    companion object {
-        private const val serialVersionUID = 7533866830395120136L
-    }
 }
-

@@ -1,7 +1,5 @@
 package io.documentnode.epub4j.domain
 
-import java.io.Serializable
-
 /**
  * Representation of a Book.
  *
@@ -37,7 +35,7 @@ import java.io.Serializable
  * @author paul
  * @author jake
  */
-class Book: Serializable {
+class Book {
     /**
      * The collection of all images, chapters, sections, xhtml files,
      * stylesheets, etc that make up the book.
@@ -108,7 +106,6 @@ class Book: Serializable {
      * @param fragmentId
      * @return The table of contents
      */
-    @JvmOverloads
     fun addSection(
         parentSection: TOCReference,
         sectionTitle: String?,
@@ -133,7 +130,6 @@ class Book: Serializable {
      * @param fragmentId
      * @return The table of contents
      */
-    @JvmOverloads
     fun addSection(
         title: String?, resource: Resource, fragmentId: String? = null
     ): TOCReference {
@@ -233,8 +229,6 @@ class Book: Serializable {
         }
 
     companion object {
-        private const val serialVersionUID = 2068355170895770100L
-
         private fun addToContentsResult(
             resource: Resource?,
             allReachableResources: MutableMap<String, Resource>

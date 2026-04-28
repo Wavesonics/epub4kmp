@@ -1,24 +1,27 @@
 package io.documentnode.epub4j.epub
 
 import io.documentnode.epub4j.Constants
-import io.documentnode.epub4j.domain.*
+import io.documentnode.epub4j.domain.Author
+import io.documentnode.epub4j.domain.Book
+import io.documentnode.epub4j.domain.Identifier
+import io.documentnode.epub4j.domain.MediaTypes
+import io.documentnode.epub4j.domain.Resource
+import io.documentnode.epub4j.domain.TableOfContents
+import io.documentnode.epub4j.domain.TOCReference
 import io.documentnode.epub4j.util.ResourceUtil
 import io.documentnode.epub4j.util.StringUtil
-import org.w3c.dom.Document
-import org.w3c.dom.Element
-import org.w3c.dom.NodeList
-import org.xmlpull.v1.XmlSerializer
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.io.UnsupportedEncodingException
-import java.net.URLDecoder
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
+import io.documentnode.epub4j.util.percentDecode
+import nl.adaptivity.xmlutil.XmlWriter
+import nl.adaptivity.xmlutil.dom2.Element
+import nl.adaptivity.xmlutil.dom2.NodeList
+import nl.adaptivity.xmlutil.dom2.childNodes
+import nl.adaptivity.xmlutil.dom2.documentElement
+import nl.adaptivity.xmlutil.dom2.length
+import nl.adaptivity.xmlutil.dom2.localName
 
 /**
- * Writes the ncx document as defined by namespace http://www.daisy.org/z3986/2005/ncx/
- *
- * @author paul
+ * Reads and writes the NCX (Navigation Control file for XML) document
+ * defined by namespace `http://www.daisy.org/z3986/2005/ncx/`.
  */
 @Suppress("ConstPropertyName")
 object NCXDocument {
@@ -28,322 +31,198 @@ object NCXDocument {
     const val DEFAULT_NCX_HREF: String = "toc.ncx"
     const val PREFIX_DTB: String = "dtb"
 
-    fun read(book: Book, epubReader: EpubReader): Resource? {
-        var ncxResource: Resource? = null
-        if (book.spine.tocResource == null) {
-            return null
-        }
+    fun read(book: Book, @Suppress("UNUSED_PARAMETER") epubReader: EpubReader): Resource? {
+        val ncxResource = book.spine.tocResource ?: return null
         try {
-            ncxResource = book.spine.tocResource ?: return null
-            val ncxDocument: Document = ResourceUtil.getAsDocument(ncxResource)!!
+            val ncxDocument = ResourceUtil.getAsDocument(ncxResource)
+            val rootElement = ncxDocument.documentElement ?: return ncxResource
             val navMapElement = DOMUtil.getFirstElementByTagNameNS(
-                ncxDocument.documentElement,
-                NAMESPACE_NCX, NCXTags.navMap
-            )!!
-            val tableOfContents = TableOfContents(
+                rootElement, NAMESPACE_NCX, NCXTags.navMap
+            ) ?: return ncxResource
+            book.tableOfContents = TableOfContents(
                 readTOCReferences(navMapElement.childNodes, book).toMutableList()
             )
-            book.tableOfContents = tableOfContents
         } catch (e: Exception) {
             e.printStackTrace()
         }
         return ncxResource
     }
 
-    private fun readTOCReferences(
-        navpoints: NodeList,
-        book: Book
-    ): List<TOCReference> {
-        return (0 until navpoints.length).asSequence()
-            .map(navpoints::item)
-            .filterIsInstance(Element::class.java)
-            .mapNotNull { node ->
-                if (node.localName != NCXTags.navPoint) {
-                    return@mapNotNull null
-                }
-                readTOCReference(node, book)
-            }
-            .toList()
+    private fun readTOCReferences(navpoints: NodeList, book: Book): List<TOCReference> {
+        val out = mutableListOf<TOCReference>()
+        for (i in 0 until navpoints.length) {
+            val node = navpoints.item(i) as? Element ?: continue
+            if (node.localName != NCXTags.navPoint) continue
+            out.add(readTOCReference(node, book))
+        }
+        return out
     }
 
     fun readTOCReference(navpointElement: Element, book: Book): TOCReference {
         val label = readNavLabel(navpointElement)
         val resourceHref = book.spine.tocResource?.href ?: ""
-        var tocResourceRoot: String = resourceHref.substringBeforeLast('/')
-        tocResourceRoot = if (
-            tocResourceRoot.length == (resourceHref.length)
-        ) {
-            ""
-        } else {
-            "$tocResourceRoot/"
-        }
+        var tocResourceRoot = resourceHref.substringBeforeLast('/')
+        tocResourceRoot = if (tocResourceRoot.length == resourceHref.length) "" else "$tocResourceRoot/"
         val reference = StringUtil.collapsePathDots(tocResourceRoot + readNavReference(navpointElement))
-        val href: String = reference.substringBefore(Constants.FRAGMENT_SEPARATOR_CHAR)
-        val fragmentId: String = reference.substringAfter(Constants.FRAGMENT_SEPARATOR_CHAR)
+        val href = reference.substringBefore(Constants.FRAGMENT_SEPARATOR_CHAR)
+        val fragmentId = reference.substringAfter(Constants.FRAGMENT_SEPARATOR_CHAR)
         val resource = book.resources.getByHref(href)
         if (resource == null) {
             println("Resource with href $href in NCX document not found")
         }
         val result = TOCReference(label, resource, fragmentId)
-        val childTOCReferences: List<TOCReference> = readTOCReferences(
-            navpointElement.childNodes, book
-        )
-        result.children = childTOCReferences.toMutableList()
+        result.children = readTOCReferences(navpointElement.childNodes, book).toMutableList()
         return result
     }
 
     private fun readNavReference(navpointElement: Element): String {
         val contentElement = DOMUtil.getFirstElementByTagNameNS(
-            navpointElement, NAMESPACE_NCX,
-            NCXTags.content
-        )
-        if(contentElement == null) return ""
-        val result = DOMUtil.getAttribute(contentElement, NAMESPACE_NCX, NCXAttributes.src)
-        return try {
-            URLDecoder.decode(result, Constants.CHARACTER_ENCODING)
-        } catch (e: UnsupportedEncodingException) {
-            e.printStackTrace()
-            result
-        }
+            navpointElement, NAMESPACE_NCX, NCXTags.content
+        ) ?: return ""
+        val raw = DOMUtil.getAttribute(contentElement, NAMESPACE_NCX, NCXAttributes.src)
+        return raw.percentDecode()
     }
 
     private fun readNavLabel(navpointElement: Element): String {
         val navLabel = DOMUtil.getFirstElementByTagNameNS(
-            navpointElement, NAMESPACE_NCX,
-            NCXTags.navLabel
-        )
-        if (navLabel == null) return ""
+            navpointElement, NAMESPACE_NCX, NCXTags.navLabel
+        ) ?: return ""
         val element = DOMUtil.getFirstElementByTagNameNS(
-            navLabel,
-            NAMESPACE_NCX,
-            NCXTags.text
+            navLabel, NAMESPACE_NCX, NCXTags.text
         ) ?: return ""
         return DOMUtil.getTextChildrenContent(element)
     }
 
-
-    @Throws(IOException::class)
-    fun write(
-        epubWriter: EpubWriter,
-        book: Book,
-        resultStream: ZipOutputStream
-    ) {
-        val href = book.spine.tocResource?.href ?: return
-        resultStream.putNextEntry(ZipEntry(href))
-        val out = EpubProcessorSupport.createXmlSerializer(resultStream) ?: return
-        write(out, book)
-        out.flush()
-    }
-
-
     /**
-     * Generates a resource containing an xml document containing the table of contents of the book in ncx format.
-     *
-     * @param xmlSerializer the serializer used
-     * @param book the book to serialize
-     *
-     * @throws FactoryConfigurationError
-     * @throws IOException
-     * @throws IllegalStateException
-     * @throws IllegalArgumentException
+     * Builds an NCX [Resource] containing the table of contents for [book].
      */
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    fun write(xmlSerializer: XmlSerializer, book: Book) {
-        write(
-            xmlSerializer,
+    fun createNCXResource(book: Book): Resource =
+        createNCXResource(
             book.metadata.getIdentifiers(),
             book.title,
             book.metadata.getAuthors(),
             book.tableOfContents
         )
-    }
 
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    fun createNCXResource(book: Book): Resource? {
-        return createNCXResource(
-            book.metadata.getIdentifiers(),
-            book.title,
-            book.metadata.getAuthors(),
-            book.tableOfContents
-        )
-    }
-
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
     fun createNCXResource(
         identifiers: List<Identifier>,
         title: String,
         authors: List<Author>,
         tableOfContents: TableOfContents
-    ): Resource? {
-        val data = ByteArrayOutputStream()
-        val out = EpubProcessorSupport.createXmlSerializer(data) ?: return null
-        write(out, identifiers, title, authors, tableOfContents)
-        val resource = Resource(
+    ): Resource {
+        val sb = StringBuilder()
+        val writer = EpubProcessorSupport.createXmlWriter(sb)
+        try {
+            write(writer, identifiers, title, authors, tableOfContents)
+        } finally {
+            writer.close()
+        }
+        return Resource(
             NCX_ITEM_ID,
-            data.toByteArray(),
+            sb.toString().encodeToByteArray(),
             DEFAULT_NCX_HREF,
             MediaTypes.NCX
         )
-        return resource
     }
 
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
+    fun write(writer: XmlWriter, book: Book) {
+        write(
+            writer,
+            book.metadata.getIdentifiers(),
+            book.title,
+            book.metadata.getAuthors(),
+            book.tableOfContents
+        )
+    }
+
     fun write(
-        serializer: XmlSerializer,
+        writer: XmlWriter,
         identifiers: List<Identifier>,
         title: String,
         authors: List<Author>,
         tableOfContents: TableOfContents
     ) {
-        serializer.startDocument(Constants.CHARACTER_ENCODING, false)
-        serializer.setPrefix(EpubWriter.EMPTY_NAMESPACE_PREFIX, NAMESPACE_NCX)
-        serializer.startTag(NAMESPACE_NCX, NCXTags.ncx)
-        //		serializer.writeNamespace("ncx", NAMESPACE_NCX);
-//		serializer.attribute("xmlns", NAMESPACE_NCX);
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX, NCXAttributes.version,
-            NCXAttributeValues.version
-        )
-        serializer.startTag(NAMESPACE_NCX, NCXTags.head)
+        writer.startDocument(version = "1.0", encoding = Constants.CHARACTER_ENCODING)
+        writer.startTag(NAMESPACE_NCX, NCXTags.ncx, "")
+        writer.attribute(null, NCXAttributes.version, null, NCXAttributeValues.version)
 
-        identifiers.forEach {
-            writeMetaElement(
-                it.scheme,
-                it.value,
-                serializer
-            )
+        writer.startTag(NAMESPACE_NCX, NCXTags.head, "")
+        identifiers.forEach { writeMetaElement(it.scheme, it.value, writer) }
+        writeMetaElement("generator", Constants.EPUB4J_GENERATOR_NAME, writer)
+        writeMetaElement("depth", tableOfContents.calculateDepth().toString(), writer)
+        writeMetaElement("totalPageCount", "0", writer)
+        writeMetaElement("maxPageNumber", "0", writer)
+        writer.endTag(NAMESPACE_NCX, NCXTags.head, "")
+
+        writer.startTag(NAMESPACE_NCX, NCXTags.docTitle, "")
+        writer.startTag(NAMESPACE_NCX, NCXTags.text, "")
+        writer.text(StringUtil.defaultIfNull(title))
+        writer.endTag(NAMESPACE_NCX, NCXTags.text, "")
+        writer.endTag(NAMESPACE_NCX, NCXTags.docTitle, "")
+
+        for (author in authors) {
+            writer.startTag(NAMESPACE_NCX, NCXTags.docAuthor, "")
+            writer.startTag(NAMESPACE_NCX, NCXTags.text, "")
+            writer.text(author.lastname + ", " + author.firstname)
+            writer.endTag(NAMESPACE_NCX, NCXTags.text, "")
+            writer.endTag(NAMESPACE_NCX, NCXTags.docAuthor, "")
         }
 
-        writeMetaElement("generator", Constants.EPUB4J_GENERATOR_NAME, serializer)
-        writeMetaElement(
-            "depth", tableOfContents.calculateDepth().toString(),
-            serializer
-        )
-        writeMetaElement("totalPageCount", "0", serializer)
-        writeMetaElement("maxPageNumber", "0", serializer)
+        writer.startTag(NAMESPACE_NCX, NCXTags.navMap, "")
+        writeNavPoints(tableOfContents.getTocReferences(), 1, writer)
+        writer.endTag(NAMESPACE_NCX, NCXTags.navMap, "")
 
-        serializer.endTag(NAMESPACE_NCX, "head")
-
-        serializer.startTag(NAMESPACE_NCX, NCXTags.docTitle)
-        serializer.startTag(NAMESPACE_NCX, NCXTags.text)
-        // write the first title
-        serializer.text(StringUtil.defaultIfNull(title))
-        serializer.endTag(NAMESPACE_NCX, NCXTags.text)
-        serializer.endTag(NAMESPACE_NCX, NCXTags.docTitle)
-
-        authors.forEach { author ->
-            serializer.startTag(NAMESPACE_NCX, NCXTags.docAuthor)
-            serializer.startTag(NAMESPACE_NCX, NCXTags.text)
-            serializer.text(author.lastname + ", " + author.firstname)
-            serializer.endTag(NAMESPACE_NCX, NCXTags.text)
-            serializer.endTag(NAMESPACE_NCX, NCXTags.docAuthor)
-        }
-
-        serializer.startTag(NAMESPACE_NCX, NCXTags.navMap)
-        writeNavPoints(tableOfContents.getTocReferences(), 1, serializer)
-        serializer.endTag(NAMESPACE_NCX, NCXTags.navMap)
-
-        serializer.endTag(NAMESPACE_NCX, "ncx")
-        serializer.endDocument()
+        writer.endTag(NAMESPACE_NCX, NCXTags.ncx, "")
+        writer.endDocument()
     }
 
-
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    private fun writeMetaElement(
-        dtbName: String,
-        content: String,
-        serializer: XmlSerializer
-    ) {
-        serializer.startTag(NAMESPACE_NCX, NCXTags.meta)
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX, NCXAttributes.name,
-            "$PREFIX_DTB:$dtbName"
-        )
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX, NCXAttributes.content,
-            content
-        )
-        serializer.endTag(NAMESPACE_NCX, NCXTags.meta)
+    private fun writeMetaElement(dtbName: String, content: String, writer: XmlWriter) {
+        writer.startTag(NAMESPACE_NCX, NCXTags.meta, "")
+        writer.attribute(null, NCXAttributes.name, null, "$PREFIX_DTB:$dtbName")
+        writer.attribute(null, NCXAttributes.content, null, content)
+        writer.endTag(NAMESPACE_NCX, NCXTags.meta, "")
     }
 
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
     private fun writeNavPoints(
         tocReferences: List<TOCReference>,
         playOrder: Int,
-        serializer: XmlSerializer
+        writer: XmlWriter
     ): Int {
-        var playOrder = playOrder
+        var po = playOrder
         for (tocReference in tocReferences) {
             if (tocReference.resource == null) {
-                playOrder = writeNavPoints(
-                    tocReferences = tocReference.children,
-                    playOrder = playOrder,
-                    serializer = serializer
-                )
+                po = writeNavPoints(tocReference.children, po, writer)
                 continue
             }
-            if(tocReference.title.isNullOrBlank().not()) {
-                writeNavPointStart(
-                    tocReference = tocReference,
-                    playOrder = playOrder,
-                    serializer = serializer
-                )
-                playOrder++
+            if (!tocReference.title.isNullOrBlank()) {
+                writeNavPointStart(tocReference, po, writer)
+                po++
                 if (tocReference.children.isNotEmpty()) {
-                    playOrder = writeNavPoints(
-                        tocReferences = tocReference.children,
-                        playOrder = playOrder,
-                        serializer = serializer
-                    )
+                    po = writeNavPoints(tocReference.children, po, writer)
                 }
-                writeNavPointEnd(serializer)
-            } else {
-                continue
+                writeNavPointEnd(writer)
             }
         }
-        return playOrder
+        return po
     }
 
-
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    private fun writeNavPointStart(
-        tocReference: TOCReference,
-        playOrder: Int,
-        serializer: XmlSerializer
-    ) {
-        serializer.startTag(NAMESPACE_NCX, NCXTags.navPoint)
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX,
-            NCXAttributes.id,
-            "navPoint-$playOrder"
-        )
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX,
-            NCXAttributes.playOrder,
-            playOrder.toString()
-        )
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX,
-            NCXAttributes.clazz,
-            NCXAttributeValues.chapter
-        )
-        serializer.startTag(NAMESPACE_NCX, NCXTags.navLabel)
-        serializer.startTag(NAMESPACE_NCX, NCXTags.text)
-        serializer.text(tocReference.title)
-        serializer.endTag(NAMESPACE_NCX, NCXTags.text)
-        serializer.endTag(NAMESPACE_NCX, NCXTags.navLabel)
-        serializer.startTag(NAMESPACE_NCX, NCXTags.content)
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX,
-            NCXAttributes.src,
-            tocReference.completeHref
-        )
-        serializer.endTag(NAMESPACE_NCX, NCXTags.content)
+    private fun writeNavPointStart(tocReference: TOCReference, playOrder: Int, writer: XmlWriter) {
+        writer.startTag(NAMESPACE_NCX, NCXTags.navPoint, "")
+        writer.attribute(null, NCXAttributes.id, null, "navPoint-$playOrder")
+        writer.attribute(null, NCXAttributes.playOrder, null, playOrder.toString())
+        writer.attribute(null, NCXAttributes.clazz, null, NCXAttributeValues.chapter)
+        writer.startTag(NAMESPACE_NCX, NCXTags.navLabel, "")
+        writer.startTag(NAMESPACE_NCX, NCXTags.text, "")
+        writer.text(tocReference.title ?: "")
+        writer.endTag(NAMESPACE_NCX, NCXTags.text, "")
+        writer.endTag(NAMESPACE_NCX, NCXTags.navLabel, "")
+        writer.startTag(NAMESPACE_NCX, NCXTags.content, "")
+        writer.attribute(null, NCXAttributes.src, null, tocReference.completeHref ?: "")
+        writer.endTag(NAMESPACE_NCX, NCXTags.content, "")
     }
 
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    private fun writeNavPointEnd(serializer: XmlSerializer) {
-        serializer.endTag(NAMESPACE_NCX, NCXTags.navPoint)
+    private fun writeNavPointEnd(writer: XmlWriter) {
+        writer.endTag(NAMESPACE_NCX, NCXTags.navPoint, "")
     }
 
     private interface NCXTags {

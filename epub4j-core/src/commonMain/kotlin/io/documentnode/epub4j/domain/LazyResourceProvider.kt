@@ -1,12 +1,11 @@
 package io.documentnode.epub4j.domain
 
-import java.io.IOException
-import java.io.InputStream
-
 /**
- * @author jake
+ * Loads the bytes for a resource on demand.
+ *
+ * Implementations are typically backed by a ZIP file on disk; the bytes
+ * for a given href are read out of the archive when [getResourceBytes] is called.
  */
 interface LazyResourceProvider {
-    @Throws(IOException::class)
-    fun getResourceStream(href: String): InputStream
+    fun getResourceBytes(href: String): ByteArray
 }

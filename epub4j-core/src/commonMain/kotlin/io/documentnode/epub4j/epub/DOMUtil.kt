@@ -1,67 +1,54 @@
 package io.documentnode.epub4j.epub
 
-import io.documentnode.epub4j.util.StringUtil
-import org.w3c.dom.*
+import nl.adaptivity.xmlutil.dom2.Document
+import nl.adaptivity.xmlutil.dom2.Element
+import nl.adaptivity.xmlutil.dom2.Node
+import nl.adaptivity.xmlutil.dom2.NodeList
+import nl.adaptivity.xmlutil.dom2.NodeType
+import nl.adaptivity.xmlutil.dom2.Text
+import nl.adaptivity.xmlutil.dom2.childNodes
+import nl.adaptivity.xmlutil.dom2.documentElement
+import nl.adaptivity.xmlutil.dom2.length
+import nl.adaptivity.xmlutil.dom2.nodeType
 
 /**
- * Utility methods for working with the DOM.
- *
- * @author paul
+ * Utility methods for working with the (xmlutil) DOM.
  */
-// package
 internal object DOMUtil {
     /**
-     * First tries to get the attribute value by doing an getAttributeNS on the element, if that gets an empty element it does a getAttribute without namespace.
-     *
-     * @param element
-     * @param namespace
-     * @param attribute
-     * @return
+     * First tries to get the attribute value via `getAttributeNS`; if that's empty/null
+     * falls back to `getAttribute` without a namespace.
      */
-    @JvmStatic
     fun getAttribute(
         element: Element,
         namespace: String,
         attribute: String
     ): String {
-        val result = element.getAttributeNS(namespace, attribute)
-        return result.ifEmpty { element.getAttribute(attribute) }
+        val nsResult = element.getAttributeNS(namespace, attribute)
+        if (!nsResult.isNullOrEmpty()) return nsResult
+        return element.getAttribute(attribute) ?: ""
     }
 
     /**
-     * Gets all descendant elements of the given parentElement with the given namespace and tagname and returns their text child as a list of String.
-     *
-     * @param parentElement
-     * @param namespace
-     * @param tagname
-     * @return
+     * Gets all descendant elements of the given parentElement with the given namespace
+     * and tagname and returns each one's text content.
      */
-    @JvmStatic
     fun getElementsTextChild(
         parentElement: Element,
         namespace: String,
         tagname: String
     ): List<String> {
         val elements = parentElement.getElementsByTagNameNS(namespace, tagname)
-
-        return (0 until elements.length).mapNotNull { i ->
+        return (0 until elements.length).map { i ->
             getTextChildrenContent(elements.item(i) as Element)
         }
     }
 
     /**
-     * Finds in the current document the first element with the given namespace and elementName and with the given findAttributeName and findAttributeValue.
-     * It then returns the value of the given resultAttributeName.
-     *
-     * @param document
-     * @param namespace
-     * @param elementName
-     * @param findAttributeName
-     * @param findAttributeValue
-     * @param resultAttributeName
-     * @return
+     * Finds the first element with the given namespace and elementName whose
+     * `findAttributeName` equals `findAttributeValue` (case-insensitive), and returns
+     * the value of `resultAttributeName` on that element.
      */
-    @JvmStatic
     fun getFindAttributeValue(
         document: Document,
         namespace: String,
@@ -70,62 +57,47 @@ internal object DOMUtil {
         findAttributeValue: String,
         resultAttributeName: String
     ): String? {
-        val metaTags = document.getElementsByTagNameNS(namespace, elementName)
-
-        return (0 until metaTags.length).asSequence()
-            .map(metaTags::item)
-            .filterIsInstance(Element::class.java)
-            .firstOrNull { metaElement ->
-                findAttributeValue.equals(metaElement.getAttribute(findAttributeName), true) &&
-                metaElement.getAttribute(resultAttributeName).isNotBlank()
+        val root = document.documentElement ?: return null
+        val metaTags = root.getElementsByTagNameNS(namespace, elementName)
+        for (i in 0 until metaTags.length) {
+            val element = metaTags.item(i) as? Element ?: continue
+            val findValue = element.getAttribute(findAttributeName) ?: ""
+            val resultValue = element.getAttribute(resultAttributeName) ?: ""
+            if (findAttributeValue.equals(findValue, ignoreCase = true) && resultValue.isNotBlank()) {
+                return resultValue
             }
-            ?.getAttribute(resultAttributeName)
+        }
+        return null
     }
 
     /**
-     * Gets the first element that is a child of the parentElement and has the given namespace and tagName
-     *
-     * @param parentElement
-     * @param namespace
-     * @param tagName
-     * @return
+     * The first descendant element of [parentElement] with the given namespace and tag name.
      */
-    @JvmStatic
     fun getFirstElementByTagNameNS(
         parentElement: Element,
         namespace: String,
         tagName: String
     ): Element? {
         val nodes = parentElement.getElementsByTagNameNS(namespace, tagName)
-        if (nodes.length == 0) {
-            return null
-        }
-        return nodes.item(0) as Element
+        if (nodes.length == 0) return null
+        return nodes.item(0) as? Element
     }
 
     /**
-     * The contents of all Text nodes that are children of the given parentElement.
-     * The result is trim()-ed.
+     * The contents of all Text nodes that are children of [parentElement], concatenated and trimmed.
      *
-     * The reason for this more complicated procedure instead of just returning the data of the firstChild is that
-     * when the text is Chinese characters then on Android each Characater is represented in the DOM as
-     * an individual Text node.
-     *
-     * @param parentElement
-     * @return
+     * The text walks all Text children rather than returning `firstChild.data` because some
+     * platforms split text into multiple Text nodes (e.g. each Chinese character separately).
      */
-    @JvmStatic
     fun getTextChildrenContent(parentElement: Element): String {
-        val childNodes = parentElement.childNodes
-
-        return (0 until childNodes.length).asSequence()
-            .map(childNodes::item)
-            .filterNotNull()
-            .filter { it.nodeType == Node.TEXT_NODE }
-            .fold(StringBuilder()) { builder, node ->
-                builder.append((node as Text).data)
+        val children: NodeList = parentElement.childNodes
+        val builder = StringBuilder()
+        for (i in 0 until children.length) {
+            val node: Node = children.item(i) ?: continue
+            if (node.nodeType == NodeType.TEXT_NODE.value) {
+                builder.append((node as Text).getData())
             }
-            .trim { it <= ' ' }
-            .toString()
+        }
+        return builder.toString().trim()
     }
 }

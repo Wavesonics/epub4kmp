@@ -1,1 +1,2 @@
-group = "io.documentnode.epub4j"
+group = "com.darkrockstudios"
+version = "0.1.0-SNAPSHOT"

@@ -1,93 +1,48 @@
 package io.documentnode.epub4j.epub
 
 import io.documentnode.epub4j.Constants
-import io.documentnode.epub4j.domain.*
+import io.documentnode.epub4j.domain.Book
+import io.documentnode.epub4j.domain.MediaType
+import io.documentnode.epub4j.domain.MediaTypes
+import io.documentnode.epub4j.domain.Resource
+import io.documentnode.epub4j.domain.Resources
 import io.documentnode.epub4j.util.ResourceUtil
-import net.sf.jazzlib.ZipFile
-import net.sf.jazzlib.ZipInputStream
-import org.w3c.dom.Element
-import java.io.IOException
-import java.io.InputStream
-import java.util.*
+import okio.FileSystem
+import okio.Path
+import nl.adaptivity.xmlutil.dom2.Element
+import nl.adaptivity.xmlutil.dom2.documentElement
+import nl.adaptivity.xmlutil.dom2.length
+import okio.Source
 
 /**
- * Reads an epub file.
- *
- * @author paul
+ * Reads an EPUB file.
  */
 class EpubReader {
     private val bookProcessor: BookProcessor = BookProcessor.IDENTITY_BOOKPROCESSOR
 
-    @Throws(IOException::class)
-    fun readEpub(zipfile: ZipFile): Book {
-        return readEpub(zipfile, Constants.CHARACTER_ENCODING)
-    }
-
     /**
-     * Read epub from inputstream
-     *
-     * @param `in` the inputstream from which to read the epub
-     * @param encoding the encoding to use for the html files within the epub
-     * @return the Book as read from the inputstream
-     * @throws IOException
+     * Reads an EPUB from an okio [Source]. Loads all resource bytes into memory.
      */
-    @JvmOverloads
-    @Throws(IOException::class)
     fun readEpub(
-        inputStream: InputStream,
+        source: Source,
         encoding: String = Constants.CHARACTER_ENCODING
-    ): Book {
-        return readEpub(ZipInputStream(inputStream), encoding)
-    }
-
-    @JvmOverloads
-    @Throws(IOException::class)
-    fun readEpub(
-        inputStream: ZipInputStream,
-        encoding: String = Constants.CHARACTER_ENCODING
-    ): Book {
-        return readEpub(ResourcesLoader.loadResources(inputStream, encoding))
-    }
-
-    @Throws(IOException::class)
-    fun readEpub(
-        zipFile: ZipFile,
-        encoding: String
-    ): Book {
-        return readEpub(ResourcesLoader.loadResources(zipFile, encoding))
-    }
+    ): Book = readEpub(ResourcesLoader.loadResources(source, encoding))
 
     /**
-     * Reads this EPUB without loading all resources into memory.
+     * Reads an EPUB from a ZIP file in the given filesystem at [zipPath].
      *
-     * @param zipFile the file to load
-     * @param encoding the encoding for XHTML files
-     * @param lazyLoadedTypes a list of the MediaType to load lazily
-     * @return this Book without loading all resources into memory.
-     * @throws IOException
+     * Resources whose [MediaType] is in [lazyLoadedTypes] keep only a stub in
+     * memory; their bytes are read from the ZIP on demand.
      */
-    /**
-     * Reads this EPUB without loading any resources into memory.
-     *
-     * @param zipFile the file to load
-     * @param encoding the encoding for XHTML files
-     *
-     * @return this Book without loading all resources into memory.
-     * @throws IOException
-     */
-    @JvmOverloads
-    @Throws(IOException::class)
-    fun readEpubLazy(
-        zipFile: ZipFile,
-        encoding: String,
-        lazyLoadedTypes: List<MediaType> = MediaTypes.mediaTypes.toList()
-    ): Book {
-        val resources = ResourcesLoader.loadResources(zipFile, encoding, lazyLoadedTypes)
-        return readEpub(resources)
-    }
+    fun readEpub(
+        fileSystem: FileSystem,
+        zipPath: Path,
+        encoding: String = Constants.CHARACTER_ENCODING,
+        lazyLoadedTypes: List<MediaType> = emptyList()
+    ): Book = readEpub(
+        ResourcesLoader.loadResources(fileSystem, zipPath, encoding, lazyLoadedTypes)
+    )
 
-    @JvmOverloads
-    @Throws(IOException::class)
     fun readEpub(
         resources: Resources,
         result: Book = Book()
@@ -98,24 +53,18 @@ class EpubReader {
             packageResourceHref,
             result,
             resources
-        )
-        if(packageResource == null) return result
+        ) ?: return result
         result.opfResource = packageResource
-        val ncxResource = processNcxResource(packageResource, result)
-        result.ncxResource = ncxResource
+        result.ncxResource = processNcxResource(packageResource, result)
         return postProcessBook(result)
     }
 
-    private fun postProcessBook(book: Book): Book {
-        return bookProcessor.processBook(book)
-    }
+    private fun postProcessBook(book: Book): Book = bookProcessor.processBook(book)
 
     private fun processNcxResource(
-        packageResource: Resource,
+        @Suppress("UNUSED_PARAMETER") packageResource: Resource,
         book: Book
-    ): Resource? {
-        return NCXDocument.read(book, this)
-    }
+    ): Resource? = NCXDocument.read(book, this)
 
     private fun processPackageResource(
         packageResourceHref: String,
@@ -139,11 +88,15 @@ class EpubReader {
 
         val containerResource = resources.remove("META-INF/container.xml") ?: return result
         try {
-            val document = ResourceUtil.getAsDocument(containerResource) ?: return result
-            val rootFileElement = (document.documentElement
-                .getElementsByTagName("rootfiles").item(0) as Element)
-                .getElementsByTagName("rootfile").item(0) as Element
-            result = rootFileElement.getAttribute("full-path")
+            val document = ResourceUtil.getAsDocument(containerResource)
+            val docElement = document.documentElement ?: return result
+            val rootfiles = docElement.getElementsByTagName("rootfiles")
+            if (rootfiles.length == 0) return result
+            val rootfilesElement = rootfiles.item(0) as? Element ?: return result
+            val rootfile = rootfilesElement.getElementsByTagName("rootfile")
+            if (rootfile.length == 0) return result
+            val rootFileElement = rootfile.item(0) as? Element ?: return result
+            result = rootFileElement.getAttribute("full-path") ?: defaultResult
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -153,7 +106,7 @@ class EpubReader {
         return result
     }
 
-    private fun handleMimeType(result: Book, resources: Resources) {
+    private fun handleMimeType(@Suppress("UNUSED_PARAMETER") result: Book, resources: Resources) {
         resources.remove("mimetype")
     }
 }

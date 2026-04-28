@@ -1,28 +1,23 @@
 package io.documentnode.epub4j.domain
 
-import java.io.IOException
-import java.io.InputStream
-import java.util.zip.ZipFile
+import okio.FileSystem
+import okio.Path
+import okio.Path.Companion.toPath
+import okio.openZip
 
 /**
- * @author jake
- */
-/**
- * @param epubFilename the file name for the epub we're created from.
+ * Lazily reads resources from an EPUB on disk.
+ *
+ * Each call to [getResourceBytes] opens the ZIP via [FileSystem.openZip] and
+ * reads a single entry. okio's ZIP filesystem caches the central directory.
  */
 class EpubResourceProvider(
-    private val epubFilename: String
+    private val fileSystem: FileSystem,
+    private val zipPath: Path
 ) : LazyResourceProvider {
-    @Throws(IOException::class)
-    override fun getResourceStream(href: String): InputStream {
-        val zipFile = ZipFile(epubFilename)
-        val zipEntry = zipFile.getEntry(href)
-        if (zipEntry == null) {
-            zipFile.close()
-            throw IllegalStateException(
-                "Cannot find entry $href in epub file $epubFilename"
-            )
-        }
-        return ResourceInputStream(zipFile.getInputStream(zipEntry), zipFile)
+    override fun getResourceBytes(href: String): ByteArray {
+        val zipFs = fileSystem.openZip(zipPath)
+        val entryPath = "/$href".toPath()
+        return zipFs.read(entryPath) { readByteArray() }
     }
 }

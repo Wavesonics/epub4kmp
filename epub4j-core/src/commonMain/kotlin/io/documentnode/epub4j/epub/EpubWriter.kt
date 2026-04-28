@@ -3,42 +3,38 @@ package io.documentnode.epub4j.epub
 import io.documentnode.epub4j.domain.Book
 import io.documentnode.epub4j.domain.MediaTypes
 import io.documentnode.epub4j.domain.Resource
-import java.io.IOException
-import java.io.OutputStream
-import java.io.OutputStreamWriter
-import java.io.Writer
-import java.util.zip.CRC32
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
+import no.synth.kmpzip.crypto.Crypto
+import no.synth.kmpzip.okio.asOutputStream
+import no.synth.kmpzip.zip.ZipConstants
+import no.synth.kmpzip.zip.ZipEntry
+import no.synth.kmpzip.zip.ZipOutputStream
+import okio.Sink
+import okio.buffer
 
 /**
- * Generates an epub file. Not thread-safe, single use object.
- *
- * @author paul
+ * Generates an EPUB file. Not thread-safe, single-use.
  */
-class EpubWriter @JvmOverloads constructor(
+class EpubWriter(
     private val bookProcessor: BookProcessor = BookProcessor.IDENTITY_BOOKPROCESSOR
 ) {
-    @Throws(IOException::class)
-    fun write(
-        book: Book,
-        out: OutputStream
-    ) {
+    /**
+     * Writes the given [book] to [sink] as a complete EPUB ZIP archive.
+     */
+    fun write(book: Book, sink: Sink) {
         val processedBook = processBook(book)
-        val resultStream = ZipOutputStream(out)
-        writeMimeType(resultStream)
-        writeContainer(resultStream)
-        initTOCResource(processedBook)
-        writeResources(processedBook, resultStream)
-        writePackageDocument(processedBook, resultStream)
-        resultStream.close()
+        val zos = ZipOutputStream(sink.buffer().asOutputStream())
+        try {
+            writeMimeType(zos)
+            writeContainer(zos)
+            initTOCResource(processedBook)
+            writeResources(processedBook, zos)
+            writePackageDocument(processedBook, zos)
+        } finally {
+            zos.close()
+        }
     }
 
-    private fun processBook(
-        book: Book
-    ): Book {
-        return bookProcessor.processBook(book)
-    }
+    private fun processBook(book: Book): Book = bookProcessor.processBook(book)
 
     private fun initTOCResource(book: Book) {
         try {
@@ -48,120 +44,73 @@ class EpubWriter @JvmOverloads constructor(
                 book.resources.remove(currentTocResource.href)
             }
             book.spine.tocResource = tocResource
-            book.resources.add(tocResource!!)
+            book.resources.add(tocResource)
         } catch (ex: Exception) {
             ex.printStackTrace()
         }
     }
 
-
-    @Throws(IOException::class)
-    private fun writeResources(
-        book: Book,
-        resultStream: ZipOutputStream
-    ) {
-        book.resources.all.forEach {
-            writeResource(it, resultStream)
-        }
+    private fun writeResources(book: Book, zos: ZipOutputStream) {
+        book.resources.all.forEach { writeResource(it, zos) }
     }
 
-    /**
-     * Writes the resource to the resultStream.
-     *
-     * @param resource
-     * @param resultStream
-     * @throws IOException
-     */
-    @Throws(IOException::class)
-    private fun writeResource(resource: Resource, resultStream: ZipOutputStream) {
-        val inputStream = resource.inputStream
+    private fun writeResource(resource: Resource, zos: ZipOutputStream) {
         try {
-            if(inputStream == null) {
-                throw IllegalStateException("Can't create input stream for resource: ${resource.href}")
-            }
-            resultStream.putNextEntry(ZipEntry("OEBPS/" + resource.href))
-            inputStream.copyTo(resultStream)
+            zos.putNextEntry(ZipEntry("OEBPS/" + resource.href))
+            zos.write(resource.bytes())
+            zos.closeEntry()
         } catch (e: Exception) {
             e.printStackTrace()
-        } finally {
-            inputStream?.close()
         }
     }
 
-
-    @Throws(IOException::class)
-    private fun writePackageDocument(
-        book: Book,
-        resultStream: ZipOutputStream
-    ) {
-        resultStream.putNextEntry(ZipEntry("OEBPS/content.opf"))
-        val xmlSerializer = EpubProcessorSupport.createXmlSerializer(resultStream) ?: return
-        PackageDocumentWriter.write(
-            this,
-            xmlSerializer,
-            book
-        )
-        xmlSerializer.flush()
+    private fun writePackageDocument(book: Book, zos: ZipOutputStream) {
+        val sb = StringBuilder()
+        val writer = EpubProcessorSupport.createXmlWriter(sb)
+        try {
+            PackageDocumentWriter.write(this, writer, book)
+        } finally {
+            writer.close()
+        }
+        val bytes = sb.toString().encodeToByteArray()
+        zos.putNextEntry(ZipEntry("OEBPS/content.opf"))
+        zos.write(bytes)
+        zos.closeEntry()
     }
 
-    /**
-     * Writes the META-INF/container.xml file.
-     *
-     * @param resultStream
-     * @throws IOException
-     */
-    @Throws(IOException::class)
-    private fun writeContainer(resultStream: ZipOutputStream) {
-        resultStream.putNextEntry(ZipEntry("META-INF/container.xml"))
-        val out: Writer = OutputStreamWriter(resultStream)
-        out.write("<?xml version=\"1.0\"?>\n")
-        out.write(
-            "<container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">\n"
-        )
-        out.write("\t<rootfiles>\n")
-        out.write(
-            "\t\t<rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/>\n"
-        )
-        out.write("\t</rootfiles>\n")
-        out.write("</container>")
-        out.flush()
+    private fun writeContainer(zos: ZipOutputStream) {
+        val xml = buildString {
+            append("<?xml version=\"1.0\"?>\n")
+            append("<container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">\n")
+            append("\t<rootfiles>\n")
+            append("\t\t<rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/>\n")
+            append("\t</rootfiles>\n")
+            append("</container>")
+        }
+        zos.putNextEntry(ZipEntry("META-INF/container.xml"))
+        zos.write(xml.encodeToByteArray())
+        zos.closeEntry()
     }
 
-    /**
-     * Stores the mimetype as an uncompressed file in the ZipOutputStream.
-     *
-     * @param resultStream
-     * @throws IOException
-     */
-    @Throws(IOException::class)
-    private fun writeMimeType(resultStream: ZipOutputStream) {
-        val mimetypeZipEntry = ZipEntry("mimetype")
-        mimetypeZipEntry.method = ZipEntry.STORED
-        val mimetypeBytes: ByteArray = MediaTypes.EPUB.name.toByteArray()
-        mimetypeZipEntry.size = mimetypeBytes.size.toLong()
-        mimetypeZipEntry.crc = calculateCrc(mimetypeBytes)
-        resultStream.putNextEntry(mimetypeZipEntry)
-        resultStream.write(mimetypeBytes)
+    /** Stores the mimetype as an uncompressed STORED entry (required by the EPUB spec). */
+    private fun writeMimeType(zos: ZipOutputStream) {
+        val mimetypeBytes: ByteArray = MediaTypes.EPUB.name.encodeToByteArray()
+        val entry = ZipEntry("mimetype").apply {
+            method = ZipConstants.STORED
+            size = mimetypeBytes.size.toLong()
+            compressedSize = mimetypeBytes.size.toLong()
+            crc = Crypto.crc32(mimetypeBytes)
+        }
+        zos.putNextEntry(entry)
+        zos.write(mimetypeBytes)
+        zos.closeEntry()
     }
 
-    private fun calculateCrc(data: ByteArray): Long {
-        val crc = CRC32()
-        crc.update(data)
-        return crc.value
-    }
-
-    val ncxId: String
-        get() = "ncx"
-
-    val ncxHref: String
-        get() = "toc.ncx"
-
-    val ncxMediaType: String
-        get() = MediaTypes.NCX.name
-
+    val ncxId: String get() = "ncx"
+    val ncxHref: String get() = "toc.ncx"
+    val ncxMediaType: String get() = MediaTypes.NCX.name
 
     companion object {
-        // package
         const val EMPTY_NAMESPACE_PREFIX: String = ""
     }
 }

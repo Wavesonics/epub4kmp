@@ -1,4 +1,8 @@
-Some Icons are Copyright © <a href="http://p.yusukekamiyamane.com/">Yusuke Kamiyamane</a>. All rights reserved. Licensed under a <a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 license</a>.
+Some Icons are Copyright ï¿½ <a href="http://p.yusukekamiyamane.com/">Yusuke Kamiyamane</a>. All rights reserved. Licensed under a <a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 license</a>.
 
-Contains the class org.apache.commons.io.XmlStreamReader from the apache commons io class.
-See http://commons.apache.org/io/ for more info.
+Modified by Dark Rock Studios: ported from JVM-only to Kotlin Multiplatform
+(JVM + iOS), replacing JVM-specific I/O, ZIP, and XML implementations with
+multiplatform equivalents. The Apache Commons IO XmlStreamReader / BOMInputStream
+helpers and the embedded net.sf.jazzlib ZIP implementation were removed in
+favor of okio + xmlutil + no.synth:kmp-zip. Original work remains under
+Apache License 2.0.

@@ -1,9 +1,19 @@
 [versions]
-kotlin = "1.9.23"
-
+kotlin = "2.3.21"
+okio = "3.17.0"
+xmlutil = "0.91.3"
+kmpZip = "0.9.2"
+kotlinxDatetime = "0.7.1"
+vanniktechPublish = "0.36.0"
 
 [libraries]
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+xmlutil-core = { module = "io.github.pdvrieze.xmlutil:core", version.ref = "xmlutil" }
+xmlutil-serialization = { module = "io.github.pdvrieze.xmlutil:serialization", version.ref = "xmlutil" }
+kmp-zip = { module = "no.synth:kmp-zip", version.ref = "kmpZip" }
+kmp-zip-okio = { module = "no.synth:kmp-zip-okio", version.ref = "kmpZip" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-
+vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechPublish" }

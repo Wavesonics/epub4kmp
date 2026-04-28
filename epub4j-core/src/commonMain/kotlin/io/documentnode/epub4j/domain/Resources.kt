@@ -2,15 +2,12 @@ package io.documentnode.epub4j.domain
 
 import io.documentnode.epub4j.Constants
 import io.documentnode.epub4j.domain.MediaTypes.isBitmapImage
-import java.io.Serializable
 
 /**
  * All the resources that make up the book.
  * XHTML files, images and epub xml documents must be here.
- *
- * @author paul
  */
-class Resources : Serializable {
+class Resources {
     private var lastId = 1
 
     private var resources: MutableMap<String?, Resource> = mutableMapOf()
@@ -64,14 +61,15 @@ class Resources : Serializable {
     private fun makeValidId(resourceId: String, resource: Resource): String {
         return if (
             resourceId.isNotBlank() &&
-            !Character.isJavaIdentifierStart(resourceId.first())
+            !isValidIdStart(resourceId.first())
         ) {
             getResourceItemPrefix(resource) + resourceId
         } else {
             resourceId
         }
-
     }
+
+    private fun isValidIdStart(c: Char): Boolean = c.isLetter() || c == '_' || c == '$'
 
     private fun getResourceItemPrefix(resource: Resource): String {
         val result = if (isBitmapImage(resource.mediaType!!)) {
@@ -302,7 +300,6 @@ class Resources : Serializable {
         get() = resources.keys.filterNotNull()
 
     companion object {
-        private const val serialVersionUID = 2450876953383871451L
         private const val IMAGE_PREFIX = "image_"
         private const val ITEM_PREFIX = "item_"
 

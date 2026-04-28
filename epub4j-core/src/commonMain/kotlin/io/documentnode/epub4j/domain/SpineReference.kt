@@ -1,12 +1,8 @@
 package io.documentnode.epub4j.domain
 
-import java.io.Serializable
-
 /**
  * A Section of a book.
  * Represents both an item in the package document and a item in the index.
- *
- * @author paul
  */
 class SpineReference(
     resource: Resource,
@@ -29,8 +25,4 @@ class SpineReference(
      * @return whether the section is Primary or Auxiliary.
      */
     var linear: Boolean = true
-) : ResourceReference(resource), Serializable {
-    companion object {
-        private const val serialVersionUID = -7921609197351510248L
-    }
-}
+) : ResourceReference(resource)

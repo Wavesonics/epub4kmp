@@ -3,199 +3,123 @@ package io.documentnode.epub4j.epub
 import io.documentnode.epub4j.Constants
 import io.documentnode.epub4j.domain.Book
 import io.documentnode.epub4j.domain.Identifier
-import org.xmlpull.v1.XmlSerializer
-import java.io.IOException
+import nl.adaptivity.xmlutil.XmlWriter
 
 object PackageDocumentMetadataWriter : PackageDocumentBase() {
     /**
-     * Writes the book's metadata.
-     *
-     * @param book
-     * @param serializer
-     * @throws IOException
-     * @throws IllegalStateException
-     * @throws IllegalArgumentException
+     * Writes the book's metadata into the OPF [writer].
      */
-    @JvmStatic
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    fun writeMetaData(book: Book, serializer: XmlSerializer) {
-        serializer.startTag(NAMESPACE_OPF, OPFTags.metadata)
-        serializer.setPrefix(PREFIX_DUBLIN_CORE, NAMESPACE_DUBLIN_CORE)
-        serializer.setPrefix(PREFIX_OPF, NAMESPACE_OPF)
+    fun writeMetaData(book: Book, writer: XmlWriter) {
+        writer.startTag(NAMESPACE_OPF, OPFTags.metadata, "")
 
-        writeIdentifiers(book.metadata.getIdentifiers(), serializer)
-        writeSimpleMetadataElements(
-            DCTags.title, book.metadata.getTitles(),
-            serializer
-        )
-        writeSimpleMetadataElements(
-            DCTags.subject, book.metadata.subjects,
-            serializer
-        )
-        writeSimpleMetadataElements(
-            DCTags.description,
-            book.metadata.getDescriptions(), serializer
-        )
-        writeSimpleMetadataElements(
-            DCTags.publisher,
-            book.metadata.getPublishers(), serializer
-        )
-        writeSimpleMetadataElements(
-            DCTags.type, book.metadata.getTypes(),
-            serializer
-        )
-        writeSimpleMetadataElements(
-            DCTags.rights, book.metadata.rights,
-            serializer
-        )
+        writeIdentifiers(book.metadata.getIdentifiers(), writer)
+        writeSimpleMetadataElements(DCTags.title, book.metadata.getTitles(), writer)
+        writeSimpleMetadataElements(DCTags.subject, book.metadata.subjects, writer)
+        writeSimpleMetadataElements(DCTags.description, book.metadata.getDescriptions(), writer)
+        writeSimpleMetadataElements(DCTags.publisher, book.metadata.getPublishers(), writer)
+        writeSimpleMetadataElements(DCTags.type, book.metadata.getTypes(), writer)
+        writeSimpleMetadataElements(DCTags.rights, book.metadata.rights, writer)
 
-        // write authors
+        // authors
         for ((firstname, lastname, relator) in book.metadata.getAuthors()) {
-            serializer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.creator)
-            serializer.attribute(
-                NAMESPACE_OPF, OPFAttributes.role,
-                relator.code
-            )
-            serializer.attribute(
-                NAMESPACE_OPF, OPFAttributes.file_as,
-                "$lastname, $firstname"
-            )
-            serializer.text("$firstname $lastname")
-            serializer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.creator)
+            writer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.creator, PREFIX_DUBLIN_CORE)
+            writer.attribute(NAMESPACE_OPF, OPFAttributes.role, PREFIX_OPF, relator.code)
+            writer.attribute(NAMESPACE_OPF, OPFAttributes.file_as, PREFIX_OPF, "$lastname, $firstname")
+            writer.text("$firstname $lastname")
+            writer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.creator, PREFIX_DUBLIN_CORE)
         }
 
-        // write contributors
+        // contributors
         for ((firstname, lastname, relator) in book.metadata.getContributors()) {
-            serializer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.contributor)
-            serializer.attribute(
-                NAMESPACE_OPF, OPFAttributes.role,
-                relator.code
-            )
-            serializer.attribute(
-                NAMESPACE_OPF, OPFAttributes.file_as,
-                "$lastname, $firstname"
-            )
-            serializer.text("$firstname $lastname")
-            serializer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.contributor)
+            writer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.contributor, PREFIX_DUBLIN_CORE)
+            writer.attribute(NAMESPACE_OPF, OPFAttributes.role, PREFIX_OPF, relator.code)
+            writer.attribute(NAMESPACE_OPF, OPFAttributes.file_as, PREFIX_OPF, "$lastname, $firstname")
+            writer.text("$firstname $lastname")
+            writer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.contributor, PREFIX_DUBLIN_CORE)
         }
 
-        // write dates
+        // dates
         for (date in book.metadata.getDates()) {
-            serializer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.date)
-            if (date.event != null) {
-                serializer.attribute(
-                    NAMESPACE_OPF, OPFAttributes.event,
-                    date.event.toString()
-                )
+            writer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.date, PREFIX_DUBLIN_CORE)
+            date.event?.let {
+                writer.attribute(NAMESPACE_OPF, OPFAttributes.event, PREFIX_OPF, it.toString())
             }
-            serializer.text(date.value)
-            serializer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.date)
+            writer.text(date.value)
+            writer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.date, PREFIX_DUBLIN_CORE)
         }
 
-        // write language
+        // language
         if (book.metadata.language.isNotBlank()) {
-            serializer.startTag(NAMESPACE_DUBLIN_CORE, "language")
-            serializer.text(book.metadata.language)
-            serializer.endTag(NAMESPACE_DUBLIN_CORE, "language")
+            writer.startTag(NAMESPACE_DUBLIN_CORE, "language", PREFIX_DUBLIN_CORE)
+            writer.text(book.metadata.language)
+            writer.endTag(NAMESPACE_DUBLIN_CORE, "language", PREFIX_DUBLIN_CORE)
         }
 
-        // write other properties
+        // other properties (EPUB 3 <meta property="ns:foo">)
         for ((key, value) in book.metadata.otherProperties) {
-            serializer.startTag(key.namespaceURI, OPFTags.meta)
-            serializer.attribute(
-                EpubWriter.EMPTY_NAMESPACE_PREFIX,
-                OPFAttributes.property, key.localPart
-            )
-            serializer.text(value)
-            serializer.endTag(key.namespaceURI, OPFTags.meta)
+            // Use the getter methods directly: in JVM, QName is javax.xml.namespace.QName
+            // which has the same field names (namespaceURI/prefix/localPart) but as private
+            // fields, so the xmlutil extension properties are shadowed. Calling the getters
+            // explicitly works on every target.
+            val ns = key.getNamespaceURI()
+            val prefix = key.getPrefix().ifEmpty { null }
+            val localPart = key.getLocalPart()
+            writer.startTag(ns, OPFTags.meta, prefix)
+            writer.attribute(null, OPFAttributes.property, null, localPart)
+            writer.text(value)
+            writer.endTag(ns, OPFTags.meta, prefix)
         }
 
-        // write coverimage
-        if (book.coverImage != null) { // write the cover image
-            serializer.startTag(NAMESPACE_OPF, OPFTags.meta)
-            serializer.attribute(
-                EpubWriter.EMPTY_NAMESPACE_PREFIX,
-                OPFAttributes.name,
-                OPFValues.meta_cover
-            )
-            serializer.attribute(
-                EpubWriter.EMPTY_NAMESPACE_PREFIX,
-                OPFAttributes.content,
-                book.coverImage?.id
-            )
-            serializer.endTag(NAMESPACE_OPF, OPFTags.meta)
+        // cover image
+        book.coverImage?.id?.let { coverId ->
+            writer.startTag(NAMESPACE_OPF, OPFTags.meta, "")
+            writer.attribute(null, OPFAttributes.name, null, OPFValues.meta_cover)
+            writer.attribute(null, OPFAttributes.content, null, coverId)
+            writer.endTag(NAMESPACE_OPF, OPFTags.meta, "")
         }
 
-        // write generator
-        serializer.startTag(NAMESPACE_OPF, OPFTags.meta)
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX, OPFAttributes.name,
-            OPFValues.generator
-        )
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX, OPFAttributes.content,
-            Constants.EPUB4J_GENERATOR_NAME
-        )
-        serializer.endTag(NAMESPACE_OPF, OPFTags.meta)
+        // generator
+        writer.startTag(NAMESPACE_OPF, OPFTags.meta, "")
+        writer.attribute(null, OPFAttributes.name, null, OPFValues.generator)
+        writer.attribute(null, OPFAttributes.content, null, Constants.EPUB4J_GENERATOR_NAME)
+        writer.endTag(NAMESPACE_OPF, OPFTags.meta, "")
 
-        serializer.endTag(NAMESPACE_OPF, OPFTags.metadata)
+        writer.endTag(NAMESPACE_OPF, OPFTags.metadata, "")
     }
 
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
     private fun writeSimpleMetadataElements(
         tagName: String,
         values: List<String>,
-        serializer: XmlSerializer
-    ) = values.forEach { value ->
-        if(value.isNotBlank()) {
-            serializer.startTag(NAMESPACE_DUBLIN_CORE, tagName)
-            serializer.text(value)
-            serializer.endTag(NAMESPACE_DUBLIN_CORE, tagName)
+        writer: XmlWriter
+    ) {
+        for (value in values) {
+            if (value.isNotBlank()) {
+                writer.startTag(NAMESPACE_DUBLIN_CORE, tagName, PREFIX_DUBLIN_CORE)
+                writer.text(value)
+                writer.endTag(NAMESPACE_DUBLIN_CORE, tagName, PREFIX_DUBLIN_CORE)
+            }
         }
     }
 
-
     /**
-     * Writes out the complete list of Identifiers to the package document.
-     * The first identifier for which the bookId is true is made the bookId identifier.
-     * If no identifier has bookId == true then the first bookId identifier is written as the primary.
-     *
-     * @param identifiers
-     * @param serializer
-     * @throws IOException
-     * @throws IllegalStateException
-     * @throws IllegalArgumentException
-     * @
+     * Writes the list of [Identifier]s. The first one with `isBookId == true` (or the
+     * first one if none) becomes the unique book identifier.
      */
-    @Throws(IllegalArgumentException::class, IllegalStateException::class, IOException::class)
-    private fun writeIdentifiers(
-        identifiers: List<Identifier>,
-        serializer: XmlSerializer
-    ) {
+    private fun writeIdentifiers(identifiers: List<Identifier>, writer: XmlWriter) {
         val bookIdIdentifier = Identifier.getBookIdIdentifier(identifiers) ?: return
 
-        serializer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier)
-        serializer.attribute(
-            EpubWriter.EMPTY_NAMESPACE_PREFIX,
-            DCAttributes.id,
-            BOOK_ID_ID
-        )
-        serializer.attribute(
-            NAMESPACE_OPF,
-            OPFAttributes.scheme,
-            bookIdIdentifier.scheme
-        )
-        serializer.text(bookIdIdentifier.value)
-        serializer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier)
+        writer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier, PREFIX_DUBLIN_CORE)
+        writer.attribute(null, DCAttributes.id, null, BOOK_ID_ID)
+        writer.attribute(NAMESPACE_OPF, OPFAttributes.scheme, PREFIX_OPF, bookIdIdentifier.scheme)
+        writer.text(bookIdIdentifier.value)
+        writer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier, PREFIX_DUBLIN_CORE)
 
-        for (identifier in identifiers.subList(1, identifiers.size)) {
-            if (identifier == bookIdIdentifier) {
-                continue
-            }
-            serializer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier)
-            serializer.attribute(NAMESPACE_OPF, "scheme", identifier.scheme)
-            serializer.text(identifier.value)
-            serializer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier)
+        for (identifier in identifiers) {
+            if (identifier == bookIdIdentifier) continue
+            writer.startTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier, PREFIX_DUBLIN_CORE)
+            writer.attribute(NAMESPACE_OPF, "scheme", PREFIX_OPF, identifier.scheme)
+            writer.text(identifier.value)
+            writer.endTag(NAMESPACE_DUBLIN_CORE, DCTags.identifier, PREFIX_DUBLIN_CORE)
         }
     }
 }
