@@ -16,5 +16,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "epub4j"
-include("epub4j-core")
+rootProject.name = "epub4kmp"
+include("epub4kmp-core")

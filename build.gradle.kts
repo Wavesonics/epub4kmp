@@ -1,2 +1,2 @@
 group = "com.darkrockstudios"
-version = "0.1.0-SNAPSHOT"
+version = providers.gradleProperty("library.version").get()

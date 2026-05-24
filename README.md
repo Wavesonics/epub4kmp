@@ -1,4 +1,4 @@
-# epub4j-kmp
+# epub4kmp
 
 A Kotlin Multiplatform library for reading, writing, and manipulating EPUB files.
 
@@ -17,7 +17,7 @@ the fork has been replaced with multiplatform equivalents:
 | Target | Status |
 |---|---|
 | JVM (incl. Android) | ✅ Tested |
-| iosArm64, iosX64, iosSimulatorArm64 | ✅ Compiles; tests run on a macOS host |
+| iosArm64, iosSimulatorArm64 | ✅ Compiles; tests run on a macOS host |
 | macOS / JS / wasmJs / Android | Possible — depends on the dependencies above |
 
 ## Install
@@ -27,7 +27,7 @@ the fork has been replaced with multiplatform equivalents:
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("com.darkrockstudios:epub4j-core:0.1.0-SNAPSHOT")
+            implementation("com.darkrockstudios:epub4kmp-core:0.1.0-SNAPSHOT")
         }
     }
 }
@@ -40,7 +40,7 @@ kotlin {
 ### Read an EPUB
 
 ```kotlin
-import io.documentnode.epub4j.epub.EpubReader
+import io.documentnode.epub4kmp.epub.EpubReader
 import okio.FileSystem
 import okio.Path.Companion.toPath
 
@@ -65,11 +65,11 @@ val book = EpubReader().readEpub(buffer /* okio.Source */)
 ### Write an EPUB
 
 ```kotlin
-import io.documentnode.epub4j.domain.Author
-import io.documentnode.epub4j.domain.Book
-import io.documentnode.epub4j.domain.MediaTypes
-import io.documentnode.epub4j.domain.Resource
-import io.documentnode.epub4j.epub.EpubWriter
+import io.documentnode.epub4kmp.domain.Author
+import io.documentnode.epub4kmp.domain.Book
+import io.documentnode.epub4kmp.domain.MediaTypes
+import io.documentnode.epub4kmp.domain.Resource
+import io.documentnode.epub4kmp.epub.EpubWriter
 import okio.FileSystem
 import okio.Path.Companion.toPath
 

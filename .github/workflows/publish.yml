@@ -1,0 +1,152 @@
+name: Publish to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.0 or 1.0.0-SNAPSHOT)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: macos-latest
+            name: macOS
+          - os: windows-latest
+            name: Windows
+
+    runs-on: ${{ matrix.os }}
+    name: Test on ${{ matrix.name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Grant execute permission for gradlew
+        if: matrix.os != 'windows-latest'
+        run: chmod +x gradlew
+
+      - name: Build library
+        run: ./gradlew :epub4kmp-core:assemble --no-daemon --stacktrace
+
+      - name: Run JVM tests
+        run: ./gradlew :epub4kmp-core:jvmTest --no-daemon --stacktrace
+
+      - name: Run iOS simulator tests
+        if: matrix.os == 'macos-latest'
+        run: ./gradlew :epub4kmp-core:iosSimulatorArm64Test --no-daemon --stacktrace
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-results-${{ matrix.name }}
+          path: epub4kmp-core/build/reports/tests/
+          retention-days: 7
+
+  publish:
+    needs: test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+          echo "Publishing version: $TAG_VERSION"
+
+      - name: Use manual version
+        if: github.event.inputs.version != ''
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "Publishing version: ${{ github.event.inputs.version }}"
+
+      - name: Update version in gradle.properties
+        if: env.VERSION != ''
+        run: |
+          sed -i.bak "s/library.version=.*/library.version=$VERSION/" gradle.properties
+          cat gradle.properties | grep library.version
+
+      - name: Assemble library
+        run: ./gradlew :epub4kmp-core:assemble --no-daemon --stacktrace
+
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :epub4kmp-core:publishAllPublicationsToMavenCentralRepository --no-daemon --stacktrace
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Summary
+        if: success()
+        run: |
+          echo "## :rocket: Published Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Group ID:** com.darkrockstudios" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact ID:** epub4kmp-core" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$VERSION" ]; then
+            echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Version:** $(grep 'library.version' gradle.properties | cut -d'=' -f2)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          if [[ "$VERSION" == *"-SNAPSHOT" ]] || [[ "$(grep 'library.version' gradle.properties)" == *"-SNAPSHOT" ]]; then
+            echo "- Snapshot published to https://s01.oss.sonatype.org/content/repositories/snapshots/" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Visit [Sonatype Nexus](https://s01.oss.sonatype.org/) to close and release the staging repository" >> $GITHUB_STEP_SUMMARY
+            echo "- Wait 10-30 minutes for sync to Maven Central" >> $GITHUB_STEP_SUMMARY
+            echo "- Verify on [Maven Central Search](https://search.maven.org/search?q=g:com.darkrockstudios%20AND%20a:epub4kmp-core)" >> $GITHUB_STEP_SUMMARY
+          fi
