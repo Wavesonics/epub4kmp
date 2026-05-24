@@ -32,7 +32,7 @@ the fork has been replaced with multiplatform equivalents:
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("com.darkrockstudios:epub4kmp-core:0.1.0-SNAPSHOT")
+            implementation("com.darkrockstudios:epub4kmp-core:0.1.0")
         }
     }
 }
