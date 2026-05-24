@@ -144,9 +144,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           if [[ "$VERSION" == *"-SNAPSHOT" ]] || [[ "$(grep 'library.version' gradle.properties)" == *"-SNAPSHOT" ]]; then
-            echo "- Snapshot published to https://s01.oss.sonatype.org/content/repositories/snapshots/" >> $GITHUB_STEP_SUMMARY
+            echo "- Snapshot published to https://central.sonatype.com/repository/maven-snapshots/" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- Visit [Sonatype Nexus](https://s01.oss.sonatype.org/) to close and release the staging repository" >> $GITHUB_STEP_SUMMARY
+            echo "- Released automatically via the [Central Portal](https://central.sonatype.com/publishing/deployments)" >> $GITHUB_STEP_SUMMARY
             echo "- Wait 10-30 minutes for sync to Maven Central" >> $GITHUB_STEP_SUMMARY
-            echo "- Verify on [Maven Central Search](https://search.maven.org/search?q=g:com.darkrockstudios%20AND%20a:epub4kmp-core)" >> $GITHUB_STEP_SUMMARY
+            echo "- Verify on [Maven Central Search](https://central.sonatype.com/search?q=g:com.darkrockstudios+a:epub4kmp-core)" >> $GITHUB_STEP_SUMMARY
           fi

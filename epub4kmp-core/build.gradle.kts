@@ -37,7 +37,7 @@ kotlin {
 }
 
 mavenPublishing {
-  publishToMavenCentral(automaticRelease = false)
+  publishToMavenCentral(automaticRelease = true)
   // signAllPublications() requires a configured GPG signing key — see
   // https://vanniktech.github.io/gradle-maven-publish-plugin/central/#secrets
   signAllPublications()
@@ -54,7 +54,7 @@ mavenPublishing {
       "Kotlin Multiplatform library for reading/writing/manipulating EPUB files. " +
         "A KMP fork of epub4j (formerly epub4j-kotlin, which itself was a fork of epublib)."
     )
-    url.set("https://github.com/Wavesonics/epub4kmp-kmp")
+    url.set("https://github.com/Wavesonics/epub4kmp")
     licenses {
       license {
         name.set("Apache License, Version 2.0")
