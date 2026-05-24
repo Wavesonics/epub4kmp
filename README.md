@@ -1,5 +1,7 @@
 # epub4kmp
 
+[![Maven Central](https://img.shields.io/maven-central/v/com.darkrockstudios/epub4kmp-core.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.darkrockstudios/epub4kmp-core)
+
 A Kotlin Multiplatform library for reading, writing, and manipulating EPUB files.
 
 A KMP fork of [epub4j-kotlin](https://github.com/documentnode/epub4j) (which itself
@@ -16,9 +18,12 @@ the fork has been replaced with multiplatform equivalents:
 
 | Target | Status |
 |---|---|
-| JVM (incl. Android) | ✅ Tested |
-| iosArm64, iosSimulatorArm64 | ✅ Compiles; tests run on a macOS host |
-| macOS / JS / wasmJs / Android | Possible — depends on the dependencies above |
+| JVM (incl. Android) | ✅ Tested on Linux, macOS, and Windows |
+| iosArm64, iosSimulatorArm64 | ✅ Compiles; simulator tests run on a macOS host |
+| macosArm64 | ✅ Compiles |
+| linuxX64, linuxArm64 | ✅ Compiles |
+| mingwX64 (Windows native) | ✅ Compiles |
+| JS / wasmJs / Android native | Not yet enabled — depends on the libraries above |
 
 ## Install
 
