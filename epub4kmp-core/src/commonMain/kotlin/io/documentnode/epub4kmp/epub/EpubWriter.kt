@@ -13,9 +13,16 @@ import okio.buffer
 
 /**
  * Generates an EPUB file. Not thread-safe, single-use.
+ *
+ * The default [bookProcessor] is a pipeline containing [StylesheetLinker],
+ * which auto-injects `<link rel="stylesheet">` tags for every stylesheet
+ * registered via [io.documentnode.epub4kmp.domain.Book.addStylesheet]. Pass
+ * your own [BookProcessor] to opt out or to compose additional steps.
  */
 class EpubWriter(
-    private val bookProcessor: BookProcessor = BookProcessor.IDENTITY_BOOKPROCESSOR
+    private val bookProcessor: BookProcessor = BookProcessorPipeline(
+        mutableListOf(StylesheetLinker())
+    )
 ) {
     /**
      * Writes the given [book] to [sink] as a complete EPUB ZIP archive.

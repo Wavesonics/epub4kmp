@@ -12,6 +12,8 @@ object EpubIo {
   fun readText(path: String): String =
     fs.read(path.toPath()) { readUtf8() }
 
+  fun exists(path: String): Boolean = fs.exists(path.toPath())
+
   fun writeText(text: String, path: String) {
     fs.write(path.toPath()) { writeUtf8(text) }
   }

@@ -156,6 +156,48 @@ class Book {
         return resources.add(resource)
     }
 
+    /**
+     * Hrefs of stylesheets that should be auto-linked from every XHTML page
+     * at write time. Populated by [addStylesheet]; consumed by
+     * [io.documentnode.epub4kmp.epub.StylesheetLinker].
+     *
+     * Power users may push hrefs of stylesheets they registered manually here
+     * to opt them into auto-linking.
+     */
+    val stylesheets: MutableList<String> = mutableListOf()
+
+    /**
+     * Adds [stylesheet] as a resource and marks it for auto-linking from every
+     * XHTML page at write time.
+     *
+     * Re-adding the same [Stylesheet] instance is a no-op. Throws
+     * [IllegalArgumentException] if a *different* resource is already
+     * registered at the same href — pass a unique `Stylesheet(href = ...)` to
+     * register multiple stylesheets.
+     *
+     * Books written with the default [io.documentnode.epub4kmp.epub.EpubWriter]
+     * pipeline load and rewrite every XHTML page to inject `<link>` tags.
+     * Lazy-loaded XHTML (`lazyLoadedTypes = listOf(MediaTypes.XHTML)`) is
+     * fully materialized for that write.
+     */
+    fun addStylesheet(stylesheet: Stylesheet): Stylesheet {
+        val href = stylesheet.href
+        val existing = href?.let { resources.getByHref(it) }
+        when {
+            existing == null -> resources.add(stylesheet)
+            existing === stylesheet -> Unit // idempotent re-add
+            else -> throw IllegalArgumentException(
+                "A different resource is already registered at href \"$href\". " +
+                    "Pass a unique href to Stylesheet(href = ...) to register multiple stylesheets."
+            )
+        }
+        val registeredHref = stylesheet.href
+        if (registeredHref != null && registeredHref !in stylesheets) {
+            stylesheets.add(registeredHref)
+        }
+        return stylesheet
+    }
+
     var coverPage: Resource?
         /**
          * The book's cover page as a Resource.

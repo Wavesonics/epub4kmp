@@ -33,8 +33,10 @@ class Resources {
      * @param resource
      */
     fun fixResourceId(resource: Resource) {
-        var resourceId = resource.id ?: return
         val href = resource.href ?: return
+        // Null id is treated the same as blank — derive one from the href,
+        // then fall back to a unique counter-based id if still blank or taken.
+        var resourceId = resource.id.orEmpty()
 
         // first try and create a unique id based on the resource's href
         if (resourceId.isBlank()) {

@@ -27,6 +27,7 @@ kotlin {
         implementation(project(":epub4kmp-core"))
         implementation(libs.clikt)
         implementation(libs.jetbrains.markdown)
+        implementation(libs.kotlinx.html)
         implementation(libs.okio)
         implementation(libs.xmlutil.core)
       }

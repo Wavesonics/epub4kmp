@@ -1,8 +1,8 @@
 package com.darkrockstudios.epub4kmp.cli
 
-import io.documentnode.epub4kmp.domain.Author
-import io.documentnode.epub4kmp.domain.Book
-import io.documentnode.epub4kmp.domain.Resource
+import io.documentnode.epub4kmp.domain.*
+import kotlinx.html.*
+import kotlinx.html.stream.appendHTML
 import org.intellij.markdown.flavours.commonmark.CommonMarkFlavourDescriptor
 import org.intellij.markdown.html.HtmlGenerator
 import org.intellij.markdown.parser.MarkdownParser
@@ -11,7 +11,12 @@ object MarkdownToEpub {
 
   private data class Chunk(val title: String, val markdown: String)
 
-  fun convert(markdownPath: String, author: String, language: String): Book {
+  fun convert(
+    markdownPath: String,
+    author: String,
+    language: String,
+    style: String? = null,
+  ): Book {
     val source = EpubIo.readText(markdownPath)
     val parsed = splitChapters(source)
 
@@ -19,6 +24,7 @@ object MarkdownToEpub {
       metadata.language = language
       metadata.addTitle(parsed.title)
       metadata.addAuthor(parseAuthor(author))
+      resolveStylesheet(style)?.let { addStylesheet(it) }
     }
 
     // Title page: the H1 plus any prologue markdown.
@@ -100,6 +106,23 @@ object MarkdownToEpub {
     return trimmed.removePrefix("## ").trim().takeIf { it.isNotEmpty() }
   }
 
+  /**
+   * Resolves a `--style` value to a [Stylesheet]:
+   * - `null` → no stylesheet
+   * - `"default"` → [Stylesheets.defaultReader]
+   * - any other value → treated as a path to a `.css` file
+   *
+   * Throws [IllegalArgumentException] if the path doesn't exist.
+   */
+  private fun resolveStylesheet(style: String?): Stylesheet? = when {
+    style == null -> null
+    style == "default" -> Stylesheets.defaultReader()
+    else -> {
+      require(EpubIo.exists(style)) { "stylesheet file not found: $style" }
+      Stylesheet(css = EpubIo.readText(style))
+    }
+  }
+
   private fun parseAuthor(raw: String): Author {
     val parts = raw.trim().split(' ').filter { it.isNotBlank() }
     return when (parts.size) {
@@ -121,22 +144,15 @@ object MarkdownToEpub {
     return HtmlGenerator(markdown, tree, flavour).generateHtml()
   }
 
-  private fun wrapXhtml(title: String, body: String): String {
-    val safeTitle = title.escapeXml()
-    return """<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head><title>$safeTitle</title></head>
-<body>
-$body
-</body>
-</html>
-"""
+  private fun wrapXhtml(pageTitle: String, bodyHtml: String): String = buildString {
+    append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+    appendHTML(xhtmlCompatible = true)
+      .html(namespace = "http://www.w3.org/1999/xhtml") {
+        head { title(pageTitle) }
+        body {
+          // Body HTML is produced by the markdown renderer; insert verbatim.
+          unsafe { +bodyHtml }
+        }
+      }
   }
-
-  private fun String.escapeXml(): String =
-    replace("&", "&amp;")
-      .replace("<", "&lt;")
-      .replace(">", "&gt;")
-      .replace("\"", "&quot;")
-      .replace("'", "&apos;")
 }

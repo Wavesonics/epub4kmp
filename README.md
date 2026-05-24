@@ -100,6 +100,74 @@ FileSystem.SYSTEM.write("output.epub".toPath()) {
 }
 ```
 
+## Styling with CSS
+
+Stylesheets registered via `Book.addStylesheet` are written into the EPUB *and*
+auto-linked from every XHTML page at write time — you don't have to inject
+`<link>` tags yourself.
+
+### Use a built-in preset
+
+```kotlin
+import io.documentnode.epub4kmp.domain.Stylesheets
+
+book.addStylesheet(Stylesheets.defaultReader())
+```
+
+`defaultReader()` is an opinionated serif reading style: indented paragraphs
+(except the first in each section), generous line-height, chapter breaks
+before `<h1>`.
+
+### Build a stylesheet with the DSL
+
+A narrow typed builder covers the common ebook properties (typography,
+spacing, page breaks) with a `property(...)` / `raw(...)` escape hatch for
+anything else:
+
+```kotlin
+import io.documentnode.epub4kmp.domain.stylesheet
+
+book.addStylesheet(stylesheet {
+    body {
+        fontFamily("Georgia, \"Times New Roman\", serif")
+        lineHeight(1.5)
+        margin("1em")
+    }
+    paragraph { textIndent("1.5em"); margin("0") }
+    firstParagraph { textIndent("0") }                 // p:first-of-type
+    paragraphFirstLine { fontVariant("small-caps") }   // p::first-line
+    heading(1) { fontSize("1.8em"); pageBreakBefore("always") }
+    blockquote { margin("1em 2em"); fontStyle("italic") }
+    raw("@font-face { font-family: 'X'; src: url('fonts/X.ttf'); }")
+})
+```
+
+### Or pass raw CSS
+
+```kotlin
+import io.documentnode.epub4kmp.domain.Stylesheet
+
+book.addStylesheet(Stylesheet(
+    href = "styles/book.css",
+    css = """
+        body { font-family: serif; line-height: 1.5; }
+        p { text-indent: 1.5em; margin: 0; }
+    """.trimIndent(),
+))
+```
+
+### Opting out of auto-linking
+
+The default `EpubWriter` runs a `BookProcessorPipeline` that includes
+`StylesheetLinker`. To skip the auto-link step (e.g. you've hand-authored
+your own `<link>` tags), pass your own processor:
+
+```kotlin
+import io.documentnode.epub4kmp.epub.BookProcessor
+
+EpubWriter(BookProcessor.IDENTITY_BOOKPROCESSOR).write(book, sink)
+```
+
 ## Lazy loading large books
 
 Pass a list of `MediaType`s to `readEpub` to keep those resources unloaded until
