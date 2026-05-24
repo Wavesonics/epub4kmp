@@ -3,5 +3,7 @@ plugins {
   alias(libs.plugins.maven.central.publish) apply false
 }
 
-group = "com.darkrockstudios"
-version = providers.gradleProperty("library.version").get()
+allprojects {
+  group = "com.darkrockstudios"
+  version = providers.gradleProperty("library.version").get()
+}
