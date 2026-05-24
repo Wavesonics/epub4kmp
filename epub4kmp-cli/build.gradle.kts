@@ -28,16 +28,20 @@ kotlin {
   }
 
   // Workaround for a clikt/clikt-mordant duplicate-symbol link error on
-  // linuxX64 with Kotlin/Native static caches enabled. The two artifacts
-  // expose the same `Context.selfAndAncestors` symbol when cached, and
-  // ld.lld refuses to link. Disable the native cache for linuxX64 only.
-  // See https://kotl.in/disable-native-cache
+  // linuxX64 with Kotlin/Native static caches enabled. Both archives export
+  // `Context.selfAndAncestors` and ld.lld refuses to link them together.
+  // Tracked upstream:
+  //   - https://github.com/ajalt/clikt/issues/598
+  //   - https://youtrack.jetbrains.com/issue/KMT-1222
+  //   - https://youtrack.jetbrains.com/issue/KT-75928
+  // The legacy `kotlin.native.cacheKind.linuxX64=none` gradle property is
+  // silently ignored on Kotlin 2.3.20+ — the new DSL below is required.
   @OptIn(KotlinNativeCacheApi::class)
   linuxX64Target.binaries.withType<Executable>().configureEach {
     disableNativeCache(
-      version = DisableCacheInKotlinVersion.`2_3_20`,
+      version = DisableCacheInKotlinVersion.`2_3_21`,
       reason = "clikt + clikt-mordant duplicate symbol on linuxX64 link",
-      issueUrl = URI("https://github.com/ajalt/clikt/issues"),
+      issueUrl = URI("https://github.com/ajalt/clikt/issues/598"),
     )
   }
 
