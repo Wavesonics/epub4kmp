@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "epub4kmp"
 include("epub4kmp-core")
+include("epub4kmp-cli")

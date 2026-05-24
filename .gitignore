@@ -21,6 +21,8 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+java_pid*.hprof
+*.hprof
 
 # Ignore Gradle project-specific cache directory
 .gradle
@@ -38,3 +40,5 @@ build
 /epub4kmp-core/testbook1.epub
 .kotlin
 .claude
+/epub4kmp-cli/sample/out.epub
+/epub4kmp-cli/sample/roundtrip.md

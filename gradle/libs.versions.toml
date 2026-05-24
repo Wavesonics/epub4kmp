@@ -5,6 +5,8 @@ xmlutil = "0.91.3"
 kmpZip = "0.11.2"
 kotlinxDatetime = "0.7.1"
 maven-central-publish = "0.36.0"
+clikt = "5.0.3"
+jetbrainsMarkdown = "0.7.3"
 
 [libraries]
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
@@ -13,6 +15,8 @@ xmlutil-serialization = { module = "io.github.pdvrieze.xmlutil:serialization", v
 kmp-zip = { module = "no.synth:kmp-zip", version.ref = "kmpZip" }
 kmp-zip-okio = { module = "no.synth:kmp-zip-okio", version.ref = "kmpZip" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+jetbrains-markdown = { module = "org.jetbrains:markdown", version.ref = "jetbrainsMarkdown" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
