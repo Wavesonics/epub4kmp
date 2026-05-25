@@ -170,10 +170,12 @@ class Book {
      * Adds [stylesheet] as a resource and marks it for auto-linking from every
      * XHTML page at write time.
      *
-     * Re-adding the same [Stylesheet] instance is a no-op. Throws
-     * [IllegalArgumentException] if a *different* resource is already
-     * registered at the same href — pass a unique `Stylesheet(href = ...)` to
-     * register multiple stylesheets.
+     * Idempotent on the existing resource if it has the same bytes — so a UI
+     * layer that calls `book.addStylesheet(Stylesheets.defaultReader())` once
+     * per composition won't crash when the same Book reaches a second reader
+     * instance. Throws [IllegalArgumentException] only when a *different*
+     * resource (different bytes) is already registered at the same href; pass
+     * a unique `Stylesheet(href = ...)` in that case.
      *
      * Books written with the default [io.documentnode.epub4kmp.epub.EpubWriter]
      * pipeline load and rewrite every XHTML page to inject `<link>` tags.
@@ -185,7 +187,8 @@ class Book {
         val existing = href?.let { resources.getByHref(it) }
         when {
             existing == null -> resources.add(stylesheet)
-            existing === stylesheet -> Unit // idempotent re-add
+            existing === stylesheet -> Unit // identity-idempotent
+            existing.bytes().contentEquals(stylesheet.bytes()) -> Unit // content-idempotent
             else -> throw IllegalArgumentException(
                 "A different resource is already registered at href \"$href\". " +
                     "Pass a unique href to Stylesheet(href = ...) to register multiple stylesheets."

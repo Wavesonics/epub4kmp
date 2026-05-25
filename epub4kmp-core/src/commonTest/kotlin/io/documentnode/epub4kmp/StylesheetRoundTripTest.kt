@@ -55,6 +55,16 @@ class StylesheetRoundTripTest {
         assertEquals(1, book.stylesheets.size, "href should be tracked once")
     }
 
+    @Test fun addStylesheetContentEqualDifferentInstanceIsIdempotent() {
+        val book = Book()
+        // Same href, same CSS body — different Stylesheet instances. The Compose
+        // UI pattern `remember(book) { book.addStylesheet(Stylesheets.defaultReader()) }`
+        // produces this shape when the same Book reaches multiple reader composables.
+        book.addStylesheet(Stylesheets.defaultReader())
+        book.addStylesheet(Stylesheets.defaultReader())
+        assertEquals(1, book.stylesheets.size, "href should be tracked once")
+    }
+
     @Test fun addStylesheetConflictingHrefThrows() {
         val book = Book()
         book.addStylesheet(stylesheet { body { color("red") } })
