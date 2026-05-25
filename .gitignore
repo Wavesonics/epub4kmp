@@ -40,5 +40,5 @@ build
 /epub4kmp-core/testbook1.epub
 .kotlin
 .claude
-/epub4kmp-cli/sample/out.epub
-/epub4kmp-cli/sample/roundtrip.md
+/samples/cli/sample/out.epub
+/samples/cli/sample/roundtrip.md

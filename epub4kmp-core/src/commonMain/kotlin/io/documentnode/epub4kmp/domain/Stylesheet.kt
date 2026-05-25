@@ -17,6 +17,12 @@ class Stylesheet(
     val css: String get() = asString()
 
     companion object {
-        const val DEFAULT_HREF: String = "styles/book.css"
+        /**
+         * Default href used when the caller does not specify one. Namespaced
+         * to avoid colliding with stylesheet paths already present in real
+         * EPUBs (most commonly `styles/book.css`), which would otherwise
+         * make `Book.addStylesheet(Stylesheet(css = ...))` throw on first try.
+         */
+        const val DEFAULT_HREF: String = "styles/__epub4kmp_default.css"
     }
 }

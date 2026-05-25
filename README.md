@@ -168,6 +168,41 @@ import io.documentnode.epub4kmp.epub.BookProcessor
 EpubWriter(BookProcessor.IDENTITY_BOOKPROCESSOR).write(book, sink)
 ```
 
+## Rendering EPUBs in Compose (`epub4kmp-compose-ui`)
+
+A sibling module ships a Compose Multiplatform UI layer for displaying an
+already-loaded `Book` in a real reader. Targets are a subset of core:
+**JVM/Desktop, Android, iOS arm64 + simulator** — native and wasmJs are not
+supported. Rendering is delegated to a platform WebView on each target via
+[ComposeNativeWebview](https://github.com/kdroidFilter/composeNativeWebView),
+so chapter CSS, embedded fonts, and inline images all render at full fidelity.
+
+```kotlin
+commonMain.dependencies {
+  implementation("com.darkrockstudios:epub4kmp-core:0.1.0")
+  implementation("com.darkrockstudios:epub4kmp-compose-ui:0.1.0")
+}
+```
+
+The batteries-included `EpubReader` composable wires a TOC drawer, prev/next
+controls, and a styled chapter surface around a `Book`:
+
+```kotlin
+import io.documentnode.epub4kmp.compose.EpubReader
+import io.documentnode.epub4kmp.domain.Stylesheets
+
+@Composable
+fun ReaderScreen(book: Book) {
+  // Optional — gives the rendered chapters a readable serif default.
+  remember(book) { book.addStylesheet(Stylesheets.defaultReader()) }
+  EpubReader(book = book, modifier = Modifier.fillMaxSize())
+}
+```
+
+If you want to lay out the chrome yourself, the building blocks (`EpubContent`,
+`TableOfContents`, `CoverImage`, `MetadataCard`) are public; `EpubReader` is
+just one way to wire them together.
+
 ## Lazy loading large books
 
 Pass a list of `MediaType`s to `readEpub` to keep those resources unloaded until

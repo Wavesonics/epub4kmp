@@ -8,6 +8,14 @@ maven-central-publish = "0.36.0"
 clikt = "5.0.3"
 jetbrainsMarkdown = "0.7.3"
 kotlinxHtml = "0.12.0"
+compose = "1.10.0-rc02"
+agp = "8.13.0"
+androidMinSdk = "24"
+androidCompileSdk = "35"
+composeNativeWebview = "1.0.0-beta-02"
+filekit = "0.14.0"
+kotlinxCoroutines = "1.10.1"
+nucleus = "1.15.6"
 
 [libraries]
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
@@ -16,10 +24,20 @@ xmlutil-serialization = { module = "io.github.pdvrieze.xmlutil:serialization", v
 kmp-zip = { module = "no.synth:kmp-zip", version.ref = "kmpZip" }
 kmp-zip-okio = { module = "no.synth:kmp-zip-okio", version.ref = "kmpZip" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinxCoroutines" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 jetbrains-markdown = { module = "org.jetbrains:markdown", version.ref = "jetbrainsMarkdown" }
 kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinxHtml" }
+compose-native-webview = { module = "io.github.kdroidfilter:composewebview", version.ref = "composeNativeWebview" }
+filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
+nucleus-darkmode-detector = { module = "io.github.kdroidfilter:nucleus.darkmode-detector", version.ref = "nucleus" }
+nucleus-decorated-window-material3 = { module = "io.github.kdroidfilter:nucleus.decorated-window-material3", version.ref = "nucleus" }
+nucleus-decorated-window-jni = { module = "io.github.kdroidfilter:nucleus.decorated-window-jni", version.ref = "nucleus" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 maven-central-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-central-publish" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+android-library = { id = "com.android.library", version.ref = "agp" }

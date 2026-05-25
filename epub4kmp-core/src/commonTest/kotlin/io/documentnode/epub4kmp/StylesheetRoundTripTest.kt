@@ -31,7 +31,7 @@ class StylesheetRoundTripTest {
         val read = EpubReader().readEpub(Buffer().apply { write(buffer.readByteArray()) })
 
         // CSS resource survived the round-trip.
-        val sheet = read.resources.getByHref("styles/book.css")
+        val sheet = read.resources.getByHref(Stylesheet.DEFAULT_HREF)
         assertNotNull(sheet, "stylesheet should be in the read-back book")
         assertEquals(MediaTypes.CSS, sheet.mediaType)
         assertTrue(sheet.asString().contains("font-family: serif"))
@@ -41,7 +41,7 @@ class StylesheetRoundTripTest {
         assertNotNull(chapter)
         val chapterStr = chapter.asString()
         assertTrue(
-            chapterStr.contains("""href="styles/book.css""""),
+            chapterStr.contains("""href="${Stylesheet.DEFAULT_HREF}""""),
             "chapter should have a link tag for the stylesheet, got: $chapterStr",
         )
     }
@@ -63,7 +63,7 @@ class StylesheetRoundTripTest {
             book.addStylesheet(stylesheet { body { color("blue") } })
         }
         assertTrue(
-            ex.message!!.contains("styles/book.css"),
+            ex.message!!.contains(Stylesheet.DEFAULT_HREF),
             "error should name the conflicting href, got: ${ex.message}",
         )
     }
@@ -84,7 +84,7 @@ class StylesheetRoundTripTest {
         EpubWriter().write(original, buffer)
         val read = EpubReader().readEpub(Buffer().apply { write(buffer.readByteArray()) })
 
-        val sheet = read.resources.getByHref("styles/book.css")
+        val sheet = read.resources.getByHref(Stylesheets.DEFAULT_READER_HREF)
         assertNotNull(sheet)
         assertTrue(sheet.asString().contains("Georgia"))
     }
