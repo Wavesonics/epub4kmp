@@ -38,6 +38,11 @@ class StylesheetLinker : BookProcessor {
      * 1. Document has `</head>` → insert before it.
      * 2. Document has a self-closing `<head/>` → expand to a full `<head>…</head>`.
      * 3. Document has no head at all → insert one right after `<html ...>`.
+     *
+     * Pure transform — does not mutate any [Book] or [io.documentnode.epub4kmp.domain.Resource].
+     * Use [Companion.injectLinksInto] from outside the `epub4kmp-core` module to
+     * inject `<link>` tags into a single chapter at render time without
+     * rewriting the whole book.
      */
     internal fun injectLinks(xhtml: String, stylesheetHrefs: List<String>): String {
         if (stylesheetHrefs.isEmpty()) return xhtml
@@ -103,5 +108,24 @@ class StylesheetLinker : BookProcessor {
         private val HEAD_CLOSE = Regex("</head\\s*>", RegexOption.IGNORE_CASE)
         private val HEAD_SELF_CLOSING = Regex("<head\\b[^>]*/>", RegexOption.IGNORE_CASE)
         private val HTML_OPEN = Regex("<html\\b[^>]*>", RegexOption.IGNORE_CASE)
+
+        /**
+         * Returns [xhtml] with a `<link rel="stylesheet" .../>` injected for
+         * every entry in [book]'s [Book.stylesheets] list that isn't already
+         * linked, with each href made relative to [pageHref] (the path of the
+         * XHTML page being rendered).
+         *
+         * **For per-chapter render-time use.** Unlike [processBook], this is
+         * a pure string transform — no [io.documentnode.epub4kmp.domain.Resource]
+         * is materialized or mutated. UI layers that render one chapter at a
+         * time should prefer this over running [processBook], which iterates
+         * every XHTML page in the book and defeats lazy loading.
+         */
+        fun injectLinksInto(book: Book, pageHref: String, xhtml: String): String {
+            if (book.stylesheets.isEmpty()) return xhtml
+            val linker = StylesheetLinker()
+            val rels = book.stylesheets.map { linker.relativeHref(from = pageHref, to = it) }
+            return linker.injectLinks(xhtml, rels)
+        }
     }
 }

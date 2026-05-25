@@ -61,12 +61,13 @@ internal fun buildChapterDocument(
 	backgroundCss: String? = null,
 	textCss: String? = null,
 ): String {
-	// Ensure book.stylesheets hrefs are injected as <link> tags before we
-	// inline them. StylesheetLinker is idempotent.
-	StylesheetLinker().processBook(book)
-
+	// Per-chapter inject: processBook would force-materialize every XHTML
+	// resource in the book on each render and defeat lazyLoadedTypes XHTML.
 	val raw = chapter.asString()
-	val withInlinedCss = inlineStylesheets(book, chapter, raw)
+	val withLinks = chapter.href?.let { href ->
+		StylesheetLinker.injectLinksInto(book, href, raw)
+	} ?: raw
+	val withInlinedCss = inlineStylesheets(book, chapter, withLinks)
 	val withInlinedImages = inlineImages(book, chapter, withInlinedCss)
 	val themed = if (backgroundCss != null && textCss != null) {
 		injectThemeStyle(withInlinedImages, backgroundCss, textCss)
