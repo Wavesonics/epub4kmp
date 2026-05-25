@@ -50,9 +50,14 @@ internal const val JS_BRIDGE_INIT_SCRIPT: String = """
         } else if (window.chrome && window.chrome.webview &&
                    typeof window.chrome.webview.postMessage === 'function') {
           window.chrome.webview.postMessage(envelope);
+        } else {
+          // Visible in WebView devtools; surfacing this is the only way a
+          // future Wry/preload race won't disappear without a trace.
+          console.error('[epub4kmp] kmpJsBridge.callNative: no native IPC channel found ' +
+            '(window.ipc / chrome.webview both unavailable); dropping ' + methodName);
         }
       } catch (e) {
-        // Swallow — there's nowhere useful to log from inside the bridge.
+        console.error('[epub4kmp] kmpJsBridge.callNative threw:', e);
       }
     },
     onCallback: function(id, data) {
