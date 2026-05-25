@@ -29,6 +29,9 @@ import io.github.kdroidfilter.webview.web.rememberWebViewStateWithHTMLData
  * the surrounding Material theme's surface / onSurface so dark mode and light
  * mode both stay readable.
  *
+ * @param fragmentId if non-null, the WebView scrolls to the element with this
+ *   `id` once the chapter has loaded — used to land on the right footnote or
+ *   subsection after navigating from an `<a href="ch.xhtml#fn-3">` link.
  * @param onLinkClicked called when the user taps an `<a>` tag inside the
  *   chapter. The href is resolved against the chapter's path and the resolved
  *   [LinkClick] is delivered, ready to hand off to a
@@ -42,6 +45,7 @@ fun EpubContent(
 	modifier: Modifier = Modifier,
 	backgroundColor: Color = MaterialTheme.colorScheme.surface,
 	textColor: Color = MaterialTheme.colorScheme.onSurface,
+	fragmentId: String? = null,
 	onLinkClicked: ((LinkClick) -> Unit)? = null,
 ) {
 	val backgroundCss = remember(backgroundColor) { backgroundColor.toCssHex() }
@@ -94,6 +98,19 @@ fun EpubContent(
 			"document.documentElement.style.setProperty('$THEME_BG_VAR', '$backgroundCss');" +
 				"document.documentElement.style.setProperty('$THEME_FG_VAR', '$textCss');" +
 				"document.documentElement.style.colorScheme = '$scheme';"
+		)
+	}
+
+	// Scroll to the named anchor after the chapter finishes loading. Keying on
+	// (state, loadingState, fragmentId) means we re-fire on chapter change AND
+	// when the caller pushes a new fragment for the same chapter (footnote tap
+	// within the same page).
+	LaunchedEffect(state, state.loadingState, fragmentId) {
+		if (fragmentId.isNullOrEmpty()) return@LaunchedEffect
+		if (state.loadingState !is LoadingState.Finished) return@LaunchedEffect
+		val escaped = fragmentId.replace("\\", "\\\\").replace("'", "\\'")
+		navigator.evaluateJavaScript(
+			"document.getElementById('$escaped')?.scrollIntoView({block:'start'});"
 		)
 	}
 

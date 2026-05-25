@@ -41,6 +41,10 @@ class EpubReaderState internal constructor(
 	val currentResource: Resource?
 		get() = navigator.currentResource
 
+	/** Last `#fragment` requested by [goto] / [gotoResource]. */
+	val currentFragmentId: String?
+		get() = navigator.currentFragmentId?.ifEmpty { null }
+
 	val hasPrevious: Boolean get() = navigator.hasPreviousSpineSection()
 	val hasNext: Boolean get() = navigator.hasNextSpineSection()
 
@@ -96,6 +100,12 @@ fun EpubReader(
 			state.currentResource
 		}
 	}
+	val currentFragment by remember(state) {
+		derivedStateOf {
+			@Suppress("UNUSED_EXPRESSION") state.navTick
+			state.currentFragmentId
+		}
+	}
 	var tocOpen by rememberSaveable { mutableStateOf(false) }
 
 	Row(modifier = modifier.fillMaxSize()) {
@@ -125,6 +135,7 @@ fun EpubReader(
 						book = book,
 						resource = resource,
 						modifier = Modifier.fillMaxSize(),
+						fragmentId = currentFragment,
 						onLinkClicked = { click ->
 							val target = click.resource ?: return@EpubContent
 							state.gotoResource(target, click.fragmentId)
