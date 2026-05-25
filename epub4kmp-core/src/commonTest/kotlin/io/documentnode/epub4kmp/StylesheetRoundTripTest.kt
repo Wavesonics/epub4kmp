@@ -30,7 +30,10 @@ class StylesheetRoundTripTest {
         EpubWriter().write(original, buffer)
         val read = EpubReader().readEpub(Buffer().apply { write(buffer.readByteArray()) })
 
-        // CSS resource survived the round-trip.
+        // CSS resource survived the round-trip. The href is intentionally read
+        // through the constant — the actual *value* of that constant is pinned
+        // separately by StylesheetsTest.stylesheetDefaultHrefIsNamespaced, so
+        // a rename of DEFAULT_HREF will be caught there, not silently here.
         val sheet = read.resources.getByHref(Stylesheet.DEFAULT_HREF)
         assertNotNull(sheet, "stylesheet should be in the read-back book")
         assertEquals(MediaTypes.CSS, sheet.mediaType)

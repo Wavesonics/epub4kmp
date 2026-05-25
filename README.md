@@ -148,7 +148,9 @@ book.addStylesheet(stylesheet {
 import io.documentnode.epub4kmp.domain.Stylesheet
 
 book.addStylesheet(Stylesheet(
-    href = "styles/book.css",
+    // Omit `href` to use Stylesheet.DEFAULT_HREF, a namespaced path that
+    // won't collide with stylesheets a real EPUB might already ship at
+    // common paths like `styles/book.css`.
     css = """
         body { font-family: serif; line-height: 1.5; }
         p { text-indent: 1.5em; margin: 0; }
