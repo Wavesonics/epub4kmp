@@ -3,6 +3,7 @@ package io.documentnode.epub4kmp.compose
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -12,6 +13,7 @@ import io.documentnode.epub4kmp.domain.Resource
 import io.github.kdroidfilter.webview.jsbridge.IJsMessageHandler
 import io.github.kdroidfilter.webview.jsbridge.JsMessage
 import io.github.kdroidfilter.webview.jsbridge.rememberWebViewJsBridge
+import io.github.kdroidfilter.webview.web.LoadingState
 import io.github.kdroidfilter.webview.web.WebView
 import io.github.kdroidfilter.webview.web.WebViewNavigator
 import io.github.kdroidfilter.webview.web.rememberWebViewNavigator
@@ -44,7 +46,11 @@ fun EpubContent(
 ) {
 	val backgroundCss = remember(backgroundColor) { backgroundColor.toCssHex() }
 	val textCss = remember(textColor) { textColor.toCssHex() }
-	val html = remember(book, resource, backgroundCss, textCss) {
+	// Keep `html` keyed only on (book, resource) — a later theme change must
+	// NOT rebuild the document, or the WebView gets recreated and scroll
+	// position is lost. Initial theme is baked in here; live updates go
+	// through evaluateJavaScript below.
+	val html = remember(book, resource) {
 		buildChapterDocument(book, resource, backgroundCss, textCss)
 	}
 	val state = rememberWebViewStateWithHTMLData(data = html)
@@ -53,10 +59,16 @@ fun EpubContent(
 
 	// Configure settings during composition — before WebView()'s effects can
 	// kick off native creation with default (and often unwritable) settings.
-	remember(state, backgroundColor) {
+	// Deliberately NOT keyed on theme color: upstream WebViewDesktop rebuilds
+	// the native WebView whenever webSettings.backgroundColor changes, which
+	// would throw away scroll position every time the user toggles dark mode.
+	remember(state) {
 		state.webSettings.isJavaScriptEnabled = true
 		// Paint an opaque background so the OS doesn't show its window-clear
 		// color (black on Windows) during resize before the WebView repaints.
+		// Pinned to the initial theme — accept a brief flash of the old color
+		// during resize after a dark-mode toggle in exchange for not nuking
+		// the WebView on every toggle.
 		state.webSettings.backgroundColor = backgroundColor
 		state.webSettings.desktopWebSettings.transparent = false
 		defaultWebViewDataDir()?.let { dir ->
@@ -69,6 +81,20 @@ fun EpubContent(
 			state.webSettings.desktopWebSettings.initScript = script
 		}
 		Unit
+	}
+
+	// Re-theme the live document via CSS custom properties when the surrounding
+	// Material theme changes — no WebView rebuild, no chapter reload. Keying on
+	// loadingState ensures the JS runs once load finishes (even if the theme
+	// change arrived while the page was still loading).
+	LaunchedEffect(state, state.loadingState, backgroundCss, textCss) {
+		if (state.loadingState !is LoadingState.Finished) return@LaunchedEffect
+		val scheme = if (looksLight(backgroundCss)) "light" else "dark"
+		navigator.evaluateJavaScript(
+			"document.documentElement.style.setProperty('$THEME_BG_VAR', '$backgroundCss');" +
+				"document.documentElement.style.setProperty('$THEME_FG_VAR', '$textCss');" +
+				"document.documentElement.style.colorScheme = '$scheme';"
+		)
 	}
 
 	DisposableEffect(jsBridge, book, resource, onLinkClicked) {

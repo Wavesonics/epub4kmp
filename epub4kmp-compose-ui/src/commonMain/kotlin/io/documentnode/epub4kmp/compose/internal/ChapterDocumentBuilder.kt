@@ -102,15 +102,27 @@ internal fun normalizeHead(html: String): String {
 	return html
 }
 
+/** CSS custom properties the rendered chapter reads its theme colors from. */
+internal const val THEME_BG_VAR: String = "--epub4kmp-bg"
+internal const val THEME_FG_VAR: String = "--epub4kmp-fg"
+
 private fun injectThemeStyle(html: String, background: String, color: String): String {
-	// Use !important so we beat per-book CSS that might set body{color:...}.
-	// Color-scheme hint stops the WebView from auto-styling form controls /
-	// scrollbars for the wrong scheme.
+	// Use CSS custom properties so the live document can be re-themed by
+	// EpubContent's LaunchedEffect via `document.documentElement.style.setProperty(...)`
+	// without rebuilding the WebView. The initial values baked here only
+	// matter for the first paint, before any JS runs.
 	val scheme = if (looksLight(background)) "light" else "dark"
 	val style = """
 <style>
-  :root { color-scheme: $scheme; }
-  html, body { background-color: $background !important; color: $color !important; }
+  :root {
+    $THEME_BG_VAR: $background;
+    $THEME_FG_VAR: $color;
+    color-scheme: $scheme;
+  }
+  html, body {
+    background-color: var($THEME_BG_VAR) !important;
+    color: var($THEME_FG_VAR) !important;
+  }
 </style>
 """.trimIndent()
 	val headOpen = Regex("<head\\b[^>]*>", RegexOption.IGNORE_CASE).find(html)
@@ -118,13 +130,13 @@ private fun injectThemeStyle(html: String, background: String, color: String): S
 		val insertAt = headOpen.range.last + 1
 		html.substring(0, insertAt) + "\n" + style + html.substring(insertAt)
 	} else {
-		// No <head> — fall back to head injection done by injectScript below.
+		// normalizeHead() should have made this unreachable. Defensive fallback.
 		style + html
 	}
 }
 
 /** Crude perceived-lightness check for a `#rrggbb` or `rgb(...)` string. */
-private fun looksLight(css: String): Boolean {
+internal fun looksLight(css: String): Boolean {
 	val rgb = Regex("#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})", RegexOption.IGNORE_CASE)
 		.find(css) ?: return true
 	val r = rgb.groupValues[1].toInt(16)
