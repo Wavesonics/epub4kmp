@@ -49,11 +49,11 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: chmod +x gradlew
 
-      - name: Build library
-        run: ./gradlew :epub4kmp-core:assemble --no-daemon --stacktrace
+      - name: Build libraries
+        run: ./gradlew :epub4kmp-core:assemble :epub4kmp-compose-ui:assemble --no-daemon --stacktrace
 
       - name: Run JVM tests
-        run: ./gradlew :epub4kmp-core:jvmTest --no-daemon --stacktrace
+        run: ./gradlew :epub4kmp-core:jvmTest :epub4kmp-compose-ui:jvmTest --no-daemon --stacktrace
 
       - name: Run iOS simulator tests
         if: matrix.os == 'macos-latest'
@@ -64,7 +64,9 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: test-results-${{ matrix.name }}
-          path: epub4kmp-core/build/reports/tests/
+          path: |
+            epub4kmp-core/build/reports/tests/
+            epub4kmp-compose-ui/build/reports/tests/
           retention-days: 7
 
   publish:
@@ -108,8 +110,8 @@ jobs:
           sed -i.bak "s/library.version=.*/library.version=$VERSION/" gradle.properties
           cat gradle.properties | grep library.version
 
-      - name: Assemble library
-        run: ./gradlew :epub4kmp-core:assemble --no-daemon --stacktrace
+      - name: Assemble libraries
+        run: ./gradlew :epub4kmp-core:assemble :epub4kmp-compose-ui:assemble --no-daemon --stacktrace
 
       - name: Publish to Maven Central
         env:
@@ -117,7 +119,11 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-        run: ./gradlew :epub4kmp-core:publishAllPublicationsToMavenCentralRepository --no-daemon --stacktrace
+        run: |
+          ./gradlew \
+            :epub4kmp-core:publishAllPublicationsToMavenCentralRepository \
+            :epub4kmp-compose-ui:publishAllPublicationsToMavenCentralRepository \
+            --no-daemon --stacktrace
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -135,7 +141,7 @@ jobs:
           echo "## :rocket: Published Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Group ID:** com.darkrockstudios" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifact ID:** epub4kmp-core" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts:** epub4kmp-core, epub4kmp-compose-ui" >> $GITHUB_STEP_SUMMARY
           if [ -n "$VERSION" ]; then
             echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
           else
@@ -148,5 +154,5 @@ jobs:
           else
             echo "- Released automatically via the [Central Portal](https://central.sonatype.com/publishing/deployments)" >> $GITHUB_STEP_SUMMARY
             echo "- Wait 10-30 minutes for sync to Maven Central" >> $GITHUB_STEP_SUMMARY
-            echo "- Verify on [Maven Central Search](https://central.sonatype.com/search?q=g:com.darkrockstudios+a:epub4kmp-core)" >> $GITHUB_STEP_SUMMARY
+            echo "- Verify on [Maven Central Search](https://central.sonatype.com/search?q=g:com.darkrockstudios)" >> $GITHUB_STEP_SUMMARY
           fi
