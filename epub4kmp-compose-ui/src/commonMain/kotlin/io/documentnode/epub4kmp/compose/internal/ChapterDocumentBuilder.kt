@@ -63,7 +63,7 @@ internal fun buildChapterDocument(
 ): String {
 	// Per-chapter inject: processBook would force-materialize every XHTML
 	// resource in the book on each render and defeat lazyLoadedTypes XHTML.
-	val raw = chapter.asString()
+	val raw = normalizeHead(chapter.asString())
 	val withLinks = chapter.href?.let { href ->
 		StylesheetLinker.injectLinksInto(book, href, raw)
 	} ?: raw
@@ -73,6 +73,33 @@ internal fun buildChapterDocument(
 		injectThemeStyle(withInlinedImages, backgroundCss, textCss)
 	} else withInlinedImages
 	return injectScript(themed, NAV_BRIDGE_SCRIPT)
+}
+
+private val HEAD_SELF_CLOSING = Regex("<head\\b[^>]*/>", RegexOption.IGNORE_CASE)
+private val HEAD_OPEN = Regex("<head\\b[^>]*(?<!/)>", RegexOption.IGNORE_CASE)
+private val HTML_OPEN = Regex("<html\\b[^>]*>", RegexOption.IGNORE_CASE)
+
+/**
+ * Guarantees the document has an explicit `<head>…</head>` so [injectThemeStyle]
+ * and [injectScript] can land their content inside it. Handles three cases:
+ *
+ * 1. Already has `<head>…</head>` → unchanged.
+ * 2. Has `<head/>` (self-closing — e.g. some Sigil/InDesign exports) → expand.
+ * 3. No `<head>` at all → insert empty one right after `<html ...>`.
+ */
+internal fun normalizeHead(html: String): String {
+	HEAD_SELF_CLOSING.find(html)?.let { match ->
+		val openTag = match.value.removeSuffix("/>").trimEnd() + ">"
+		return html.substring(0, match.range.first) +
+			"$openTag</head>" +
+			html.substring(match.range.last + 1)
+	}
+	if (HEAD_OPEN.containsMatchIn(html)) return html
+	HTML_OPEN.find(html)?.let { match ->
+		val insertAt = match.range.last + 1
+		return html.substring(0, insertAt) + "<head></head>" + html.substring(insertAt)
+	}
+	return html
 }
 
 private fun injectThemeStyle(html: String, background: String, color: String): String {

@@ -71,4 +71,49 @@ class ChapterDocumentBuilderTest {
     val html = buildChapterDocument(book, pages[0])
     assertEquals(false, html.contains("font-family: Georgia"))
   }
+
+  @Test fun handlesSelfClosingHead() {
+    // Some Sigil/InDesign exports emit `<head/>` when the head has no children.
+    // The theme/script inject helpers used to put their content BEFORE <html>
+    // in that case, breaking dark-mode rendering and link navigation.
+    val page = Resource(
+      id = "ch1",
+      data = "<html><head/><body><p>hi</p></body></html>".encodeToByteArray(),
+      href = "ch1.xhtml",
+    ).apply { mediaType = MediaTypes.XHTML }
+    val book = Book().apply {
+      resources.add(page)
+      addStylesheet(Stylesheets.defaultReader())
+    }
+
+    val html = buildChapterDocument(book, page, backgroundCss = "#ffffff", textCss = "#000000")
+
+    // Bridge script and theme style both landed inside the head, after the
+    // expanded `<head>` open tag and before `</head>`.
+    val headStart = html.indexOf("<head")
+    val headEnd = html.indexOf("</head>")
+    val htmlOpen = html.indexOf("<html")
+    val bodyStart = html.indexOf("<body")
+
+    assertEquals(true, headStart > htmlOpen, "head open after html open")
+    assertEquals(true, headEnd in headStart..bodyStart, "</head> closes before <body>")
+    assertEquals(true, html.indexOf("kmpJsBridge") in headStart..headEnd, "bridge script inside head")
+    assertEquals(true, html.indexOf("color-scheme") in headStart..headEnd, "theme style inside head")
+  }
+
+  @Test fun handlesMissingHead() {
+    val page = Resource(
+      id = "ch1",
+      data = "<html><body><p>hi</p></body></html>".encodeToByteArray(),
+      href = "ch1.xhtml",
+    ).apply { mediaType = MediaTypes.XHTML }
+    val book = Book().apply { resources.add(page); addStylesheet(Stylesheets.defaultReader()) }
+
+    val html = buildChapterDocument(book, page, backgroundCss = "#ffffff", textCss = "#000000")
+
+    val headStart = html.indexOf("<head")
+    val bodyStart = html.indexOf("<body")
+    assertEquals(true, headStart in 0..bodyStart, "head inserted before body")
+    assertEquals(true, html.indexOf("kmpJsBridge") in headStart..bodyStart, "bridge inside inserted head")
+  }
 }
