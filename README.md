@@ -14,6 +14,11 @@ the fork has been replaced with multiplatform equivalents:
 - **XML** — [xmlutil](https://github.com/pdvrieze/xmlutil) (DOM2 reads, streaming `XmlWriter` writes)
 - **Date/UUID** — [kotlinx-datetime](https://github.com/Kotlin/kotlinx-datetime), `kotlin.uuid.Uuid`
 
+## Try the demo
+You can try the eReader sample [in your browser](https://wavesonics.github.io/epub4kmp/).
+
+You can download sample EPUBs [here](https://idpf.github.io/epub3-samples/30/samples.html).
+
 ## Supported targets
 
 | Target | Status |
