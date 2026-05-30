@@ -1,3 +1,7 @@
+@file:OptIn(ExperimentalWasmDsl::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
 	alias(libs.plugins.kotlin.multiplatform)
 	alias(libs.plugins.android.library)
@@ -16,7 +20,9 @@ kotlin {
 	iosArm64()
 	iosSimulatorArm64()
 
-	// wasmJs target deferred until epub4kmp-core publishes a wasmJs target.
+	wasmJs {
+		browser()
+	}
 
 	sourceSets {
 		commonMain {

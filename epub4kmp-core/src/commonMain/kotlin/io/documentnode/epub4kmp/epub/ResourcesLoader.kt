@@ -2,6 +2,7 @@ package io.documentnode.epub4kmp.epub
 
 import io.documentnode.epub4kmp.domain.*
 import io.documentnode.epub4kmp.util.ResourceUtil
+import io.documentnode.epub4kmp.util.openEpubZip
 import no.synth.kmpzip.okio.asInputStream
 import no.synth.kmpzip.zip.ZipInputStream
 import okio.*
@@ -51,7 +52,7 @@ object ResourcesLoader {
         defaultHtmlEncoding: String,
         lazyLoadedTypes: List<MediaType> = emptyList()
     ): Resources {
-        val zipFs = fileSystem.openZip(zipPath)
+        val zipFs = openEpubZip(fileSystem, zipPath)
         val provider = EpubResourceProvider(fileSystem, zipPath)
         val resources = Resources()
 

@@ -2,7 +2,7 @@
 kotlin = "2.3.21"
 okio = "3.17.0"
 xmlutil = "0.91.3"
-kmpZip = "0.11.2"
+kmpZip = "0.11.3"
 kotlinxDatetime = "0.7.1"
 maven-central-publish = "0.36.0"
 clikt = "5.0.3"
@@ -16,6 +16,7 @@ composeNativeWebview = "1.0.0-beta-02"
 filekit = "0.14.0"
 kotlinxCoroutines = "1.10.1"
 nucleus = "1.15.6"
+kotlinxBrowser = "0.5.0"
 
 [libraries]
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
@@ -31,6 +32,8 @@ jetbrains-markdown = { module = "org.jetbrains:markdown", version.ref = "jetbrai
 kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinxHtml" }
 compose-native-webview = { module = "io.github.kdroidfilter:composewebview", version.ref = "composeNativeWebview" }
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
+filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
 nucleus-darkmode-detector = { module = "io.github.kdroidfilter:nucleus.darkmode-detector", version.ref = "nucleus" }
 nucleus-decorated-window-material3 = { module = "io.github.kdroidfilter:nucleus.decorated-window-material3", version.ref = "nucleus" }
 nucleus-decorated-window-jni = { module = "io.github.kdroidfilter:nucleus.decorated-window-jni", version.ref = "nucleus" }

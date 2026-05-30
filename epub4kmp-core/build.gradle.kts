@@ -1,3 +1,7 @@
+@file:OptIn(ExperimentalWasmDsl::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
   alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.maven.central.publish)
@@ -7,6 +11,10 @@ kotlin {
   applyDefaultHierarchyTemplate()
 
   jvm()
+
+  wasmJs {
+    browser()
+  }
 
   iosArm64()
   iosSimulatorArm64()

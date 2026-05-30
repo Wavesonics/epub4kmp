@@ -42,3 +42,4 @@ build
 .claude
 /samples/cli/sample/out.epub
 /samples/cli/sample/roundtrip.md
+/local.properties
